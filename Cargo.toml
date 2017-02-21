@@ -1,0 +1,11 @@
+[package]
+name = "xsray"
+version = "0.1.0"
+authors = ["Serge-Olivier Amega"]
+
+[dependencies]
+image = "*"
+cgmath = "0.12.0"
+json = "*"
+obj-rs = "0.4.17"
+

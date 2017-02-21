@@ -1,0 +1,29 @@
+{
+    "render_settings" : {
+        "resolution_width" : 400,
+        "resolution_height" : 400,
+        "exposure" : 1.0
+    },
+    "scene" : {
+        "background_color" : [0.1, 0.1, 0.1],
+        "camera" : {
+            "position" : [10.0, 0.0, 0.0],
+            "direction" : [-1.0, 0.0, 0.0],
+            "up" : [0.0, 1.0, 0.0],
+            "plane_distance" : 5.0,
+            "plane_width" : 10.0
+        },
+        "shaders" : {
+            "white_diffuse" : {
+                "type" : "diffuse",
+                "color" : [1.0, 1.0, 1.0]
+            }
+        },
+        "meshes" : [
+            {
+                "src" : "cube.obj",
+                "shader" : "white_diffuse"
+            }
+        ]
+    }
+}
