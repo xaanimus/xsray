@@ -5,24 +5,30 @@
         "exposure" : 1.0
     },
     "scene" : {
-        "background_color" : [0.1, 0.1, 0.1],
+        "background_color" : [0.0, 0.0, 0.1],
         "camera" : {
-            "position" : [10.0, 0.0, 0.0],
-            "direction" : [-1.0, 0.0, 0.0],
+            "position" : [4.0, 3.0, 4.0],
+            "direction" : [-1.0, -0.4, -1.0],
             "up" : [0.0, 1.0, 0.0],
             "plane_distance" : 5.0,
-            "plane_width" : 10.0
+            "plane_width" : 5.0
         },
         "shaders" : {
             "white_diffuse" : {
                 "type" : "diffuse",
-                "color" : [1.0, 1.0, 1.0]
+                "color" : [0.8, 0.8, 1.0]
             }
         },
         "meshes" : [
             {
-                "src" : "cube.obj",
+                "src" : "object.obj",
                 "shader" : "white_diffuse"
+            }
+        ],
+        "lights" : [
+            {
+                "position" : [2.0, 3.0, 3.0],
+                "intensity": 10.0
             }
         ]
     }

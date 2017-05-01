@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 extern crate obj;
 extern crate json;
-use engine::scene::{Scene, MeshObject, MeshInfo};
+use engine::scene::{Scene, MeshObject, MeshInfo, Light};
 use engine::misc::*;
 use engine::camera::*;
 use engine::shader::*;
@@ -186,6 +186,26 @@ fn parse_mesh_array<'a,'b,'c>(obj: &json::JsonValue, shaders: &'a HashMap<String
     }
 }
 
+fn parse_lights<'a, 'b>(obj: &json::JsonValue) -> Result<Vec<Light>, ConfigError<'a, 'b>> {
+    match obj {
+        &json::JsonValue::Array(ref vec) => {
+            let mut lights = Vec::<Light>::new();
+            for light_obj in vec {
+                if let (Some(pos_vec), Some(intensity)) = (
+                    parse_vec3(&light_obj["position"]),
+                    light_obj["intensity"].as_f32())
+                {
+                    lights.push(Light{position: pos_vec, intensity: intensity});
+                } else {
+                    return Err(ConfigError::MiscError("Parse lights error"))
+                }
+            }
+            Ok(lights)
+        },
+        _ => Err(ConfigError::ConfigJsonError("While parsing lights, expected array"))
+    }
+}
+
 pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
     match json::parse(text) {
         Err(_) => Err(ConfigError::ConfigLoadError(Option::None)),
@@ -193,7 +213,7 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
 
             // parse render_settings object
             let settings = try!{
-                if let (Some(width), Some(height), Some(exp)) = (
+                if let (Some(width), Some(height), Some(exp),) = (
                     obj["render_settings"]["resolution_width"].as_i32(),
                     obj["render_settings"]["resolution_height"].as_i32(),
                     obj["render_settings"]["exposure"].as_f32())
@@ -201,7 +221,7 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
                     Ok(RenderSettings {
                         resolution_width: width,
                         resolution_height: height,
-                        exposure: exp
+                        exposure: exp,
                     })
                 } else {
                     Err(ConfigError::ConfigJsonError("config missing fields in render_settings"))
@@ -221,11 +241,13 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
                         .unwrap_or(HashMap::<String, Rc<Shader>>::new());
                     {
                         let meshes = try!(parse_mesh_array(&sc_obj["meshes"], &shaders));
+                        let lights = try!(parse_lights(&sc_obj["lights"]));
                         Ok(Scene {
                             background_color: backgnd_color,
                             camera: camera,
                             shaders: shaders,
-                            meshes: meshes
+                            meshes: meshes,
+                            lights: lights
                         })
                     }
                 } else {

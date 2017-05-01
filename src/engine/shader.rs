@@ -1,9 +1,12 @@
 
+use super::scene::{Scene, IntersectionRecord};
 use super::misc::*;
 use std::fmt::{Debug, Formatter};
 use std::fmt;
+use std::f32;
 
 pub trait Shader {
+    fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3;
 }
 
 impl Debug for Shader {
@@ -25,4 +28,11 @@ impl DiffuseShader {
 }
 
 impl Shader for DiffuseShader {
+    fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
+        scene.lights.iter().fold(Color3::new(0.0, 0.0, 0.0), |acc, light| {
+            let light_vec = light.position - record.position;
+            f32::max(0., record.normal.dot(light_vec.normalize())) *
+                self.color * light.intensity / light_vec.magnitude2() + acc
+        })
+    }
 }

@@ -31,6 +31,7 @@ pub struct Triangle {
 
 impl Intersectable for Triangle {
     fn intersect(&self, ray: &Ray, record: &mut IntersectionRecord) {
+
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
         let a_col_1 = *self.positions[0] - *self.positions[1]; //a - b
@@ -67,7 +68,14 @@ impl Intersectable for Triangle {
         let t = det_a3 / det_a;
 
         //test inside traignle and t range
-        if beta + gamma < 1.0 && ray.t_range.start < t && t < ray.t_range.end {
+        if beta + gamma < 1.0 && beta > 0.0 && gamma > 0.0 &&
+            ray.t_range.start < t && t < ray.t_range.end
+        {
+            let alpha = 1.0 - beta - gamma;
+            //interpolate
+            //TODO on construct check normals normalized
+            record.normal = *self.normals[0] * alpha + *self.normals[1] * beta +
+                *self.normals[2] * gamma;
             record.position = ray.position + t * ray.direction;
             record.t = t;
         } else {
@@ -140,10 +148,10 @@ impl fmt::Debug for MeshObject {
 
 #[derive(Clone)]
 pub struct IntersectionRecord<'a> {
-    intersected: &'a Intersectable,
-    position: Vec3,
-    normal: Vec3,
-    t: f32
+    pub intersected: &'a Intersectable,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub t: f32
 }
 
 impl<'a> IntersectionRecord<'a> {
@@ -158,24 +166,35 @@ impl<'a> IntersectionRecord<'a> {
 }
 
 #[derive(Debug)]
+pub struct Light {
+    pub position: Vec3,
+    pub intensity: f32
+}
+
+#[derive(Debug)]
 pub struct Scene {
     pub background_color: Color3,
     pub camera: Camera,
     pub shaders: HashMap<String, Rc<Shader>>,
-    pub meshes: Vec<MeshObject>
+    pub meshes: Vec<MeshObject>,
+    pub lights: Vec<Light>
 }
 
 impl Scene {
-    pub fn intersect(&self, ray: &Ray) -> Option<IntersectionRecord> {
+    pub fn intersect(&self, ray: &Ray) -> Option<(IntersectionRecord, Rc<Shader>)> {
+
         if self.meshes.len() == 0 {
             None
         } else {
+            let mut shader : Option<Rc<Shader>> = None;
             let mut max_record = IntersectionRecord::uninitialized();
             let mut record = IntersectionRecord::uninitialized();
+            max_record.t = f32::INFINITY;
             for obj in &self.meshes {
                 for tri in &obj.triangles {
                     tri.intersect(ray, &mut record);
                     if record.t < max_record.t { //intersection detected
+                        shader = Some(obj.shader.clone());
                         max_record = record.clone();
                         max_record.intersected = tri;
                     }
@@ -183,7 +202,7 @@ impl Scene {
             }
 
             if f32::is_finite(max_record.t) {
-                Some(max_record)
+                Some((max_record, shader.unwrap()))
             } else {
                 None
             }

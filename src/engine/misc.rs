@@ -7,8 +7,7 @@ pub type Vec3 = cgmath::Vector3<f32>;
 pub type Matrix3 = cgmath::Matrix3<f32>;
 pub type Color3 = Vec3;
 
-pub use self::cgmath::Zero;
-pub use self::cgmath::SquareMatrix;
+pub use self::cgmath::{Zero, SquareMatrix, InnerSpace};
 
 fn f32_to_u8_color(x: f32) -> u8 {
     f32::max(0f32, f32::min(x * 255f32, 255f32)) as u8
