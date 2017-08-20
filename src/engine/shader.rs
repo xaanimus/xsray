@@ -31,8 +31,15 @@ impl Shader for DiffuseShader {
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
         scene.lights.iter().fold(Color3::new(0.0, 0.0, 0.0), |acc, light| {
             let light_vec = light.position - record.position;
-            f32::max(0., record.normal.dot(light_vec.normalize())) *
-                self.color * light.intensity / light_vec.magnitude2() + acc
+            //see if there is an obstruction to this light
+            if let Some(_) = scene.intersect_for_obstruction(
+                record.position, light.position)
+            {
+                acc
+            } else {
+                f32::max(0., record.normal.dot(light_vec.normalize())) *
+                    self.color * light.intensity / light_vec.magnitude2() + acc
+            }
         })
     }
 }

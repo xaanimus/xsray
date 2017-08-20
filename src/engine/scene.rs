@@ -10,18 +10,10 @@ use std::f32;
 
 pub trait Intersectable {
     /// check for intersection between ray and surface.
-    /// make sure to set the intersection record's
-    /// intersected surface if it intersects
+    /// consider making this return an optional reference to intersected
+    /// surface
     fn intersect(&self, ray: &Ray, record: &mut IntersectionRecord);
 }
-
-struct DefaultIntersectable {}
-impl Intersectable for DefaultIntersectable {
-    fn intersect(&self, ray: &Ray, record: &mut IntersectionRecord) {
-        panic!("intersect() should not be called on DefaultIntersectable")
-    }
-}
-static SHARED_DEFAULT_INTERSECTABLE : DefaultIntersectable = DefaultIntersectable{};
 
 pub struct Triangle {
     //TODO pub testing only
@@ -147,20 +139,18 @@ impl fmt::Debug for MeshObject {
 }
 
 #[derive(Clone)]
-pub struct IntersectionRecord<'a> {
-    pub intersected: &'a Intersectable,
+pub struct IntersectionRecord {
     pub position: Vec3,
     pub normal: Vec3,
     pub t: f32
 }
 
-impl<'a> IntersectionRecord<'a> {
-    pub fn uninitialized() -> IntersectionRecord<'a> {
+impl IntersectionRecord {
+    pub fn uninitialized() -> IntersectionRecord {
         IntersectionRecord {
-            intersected: &SHARED_DEFAULT_INTERSECTABLE,
             position: Vec3{x: 0., y: 0., z: 0.},
             normal: Vec3{x: 0., y: 0., z: 0.},
-            t: f32::NAN
+            t: f32::NAN //consider making this infty
         }
     }
 }
@@ -182,7 +172,6 @@ pub struct Scene {
 
 impl Scene {
     pub fn intersect(&self, ray: &Ray) -> Option<(IntersectionRecord, Rc<Shader>)> {
-
         if self.meshes.len() == 0 {
             None
         } else {
@@ -196,7 +185,6 @@ impl Scene {
                     if record.t < max_record.t { //intersection detected
                         shader = Some(obj.shader.clone());
                         max_record = record.clone();
-                        max_record.intersected = tri;
                     }
                 }
             }
@@ -206,6 +194,29 @@ impl Scene {
             } else {
                 None
             }
+        }
+    }
+
+    ///detects an intersection between origin and destination. Not necessarily
+    ///the first intersection
+    pub fn intersect_for_obstruction(&self, origin: Vec3,
+                                     destination: Vec3) -> Option<(IntersectionRecord, Rc<Shader>)> {
+        let ray = Ray::new_shadow(origin, (destination - origin).normalize());
+        let max_t = (destination - origin).magnitude();
+        if self.meshes.len() == 0 {
+            None
+        } else {
+            let mut record = IntersectionRecord::uninitialized();
+            record.t = f32::INFINITY;
+            for obj in &self.meshes {
+                for tri in &obj.triangles {
+                    tri.intersect(&ray, &mut record);
+                    if record.t <= max_t {
+                        return Some((record, obj.shader.clone()));
+                    }
+                }
+            }
+            None
         }
     }
 }
