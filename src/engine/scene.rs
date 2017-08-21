@@ -1,6 +1,7 @@
 extern crate cgmath;
 
-use super::misc::*;
+use super::math::*;
+use super::color::*;
 use super::camera::*;
 use super::shader::{Shader};
 use std::rc::Rc;

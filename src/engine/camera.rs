@@ -1,7 +1,7 @@
 
 extern crate cgmath;
 
-use super::misc::*;
+use super::math::*;
 
 #[derive(Debug)]
 struct CameraBasis {

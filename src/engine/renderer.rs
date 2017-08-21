@@ -3,7 +3,9 @@ extern crate image;
 use std::cmp::max;
 use self::image::{RgbImage};
 use super::scene::*;
-use super::misc::*;
+
+//clean
+use super::color::*;
 
 fn i32_to_u32(x: i32) -> u32 {
     max(x, 0) as u32

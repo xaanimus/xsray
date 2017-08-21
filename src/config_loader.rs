@@ -10,7 +10,7 @@ use std::rc::Rc;
 extern crate obj;
 extern crate json;
 use engine::scene::{Scene, MeshObject, MeshInfo, Light};
-use engine::misc::*;
+use utilities::math::*;
 use engine::camera::*;
 use engine::shader::*;
 use engine::renderer::*;

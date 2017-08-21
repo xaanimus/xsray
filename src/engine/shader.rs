@@ -1,6 +1,7 @@
 
 use super::scene::{Scene, IntersectionRecord};
-use super::misc::*;
+use super::math::*;
+use super::color::*;
 use std::fmt::{Debug, Formatter};
 use std::fmt;
 use std::f32;

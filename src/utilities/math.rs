@@ -1,4 +1,3 @@
-
 extern crate cgmath;
 use std::ops::Neg;
 use std::ops::Range;
@@ -6,13 +5,9 @@ use std::f32;
 
 pub type Vec3 = cgmath::Vector3<f32>;
 pub type Matrix3 = cgmath::Matrix3<f32>;
-pub type Color3 = Vec3;
 
+//TODO why am I doing this?
 pub use self::cgmath::{Zero, SquareMatrix, InnerSpace};
-
-fn f32_to_u8_color(x: f32) -> u8 {
-    f32::max(0f32, f32::min(x * 255f32, 255f32)) as u8
-}
 
 ///A Vec3 that's always normalized
 #[derive(Debug)]
@@ -87,14 +82,3 @@ impl<T> RayBase<T> {
     }
 }
 
-pub trait PixelRgb8Extractable {
-    fn pixel_rgb8_values(&self) -> (u8, u8, u8);
-}
-
-impl PixelRgb8Extractable for Color3 {
-    fn pixel_rgb8_values(&self) -> (u8, u8, u8) {
-        (f32_to_u8_color(self.x),
-         f32_to_u8_color(self.y),
-         f32_to_u8_color(self.z))
-    }
-}
