@@ -12,7 +12,7 @@ pub trait Intersectable {
     /// check for intersection between ray and surface.
     /// consider making this return an optional reference to intersected
     /// surface
-    fn intersect(&self, ray: &Ray, record: &mut IntersectionRecord);
+    fn intersect(&self, ray: &RayUnit, record: &mut IntersectionRecord);
 }
 
 pub struct Triangle {
@@ -22,13 +22,13 @@ pub struct Triangle {
 }
 
 impl Intersectable for Triangle {
-    fn intersect(&self, ray: &Ray, record: &mut IntersectionRecord) {
+    fn intersect(&self, ray: &RayUnit, record: &mut IntersectionRecord) {
 
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
         let a_col_1 = *self.positions[0] - *self.positions[1]; //a - b
         let a_col_2 = *self.positions[0] - *self.positions[2]; //a - c
-        let a_col_3 = &ray.direction; //d
+        let a_col_3 = ray.direction.vec(); //d
         let b_col = *self.positions[0] - ray.position;
 
         //compute determinant of A
@@ -68,7 +68,7 @@ impl Intersectable for Triangle {
             //TODO on construct check normals normalized
             record.normal = *self.normals[0] * alpha + *self.normals[1] * beta +
                 *self.normals[2] * gamma;
-            record.position = ray.position + t * ray.direction;
+            record.position = ray.position + t * ray.direction.vec();
             record.t = t;
         } else {
             record.t = f32::NAN;
@@ -171,7 +171,7 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub fn intersect(&self, ray: &Ray) -> Option<(IntersectionRecord, Rc<Shader>)> {
+    pub fn intersect(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
         if self.meshes.len() == 0 {
             None
         } else {
@@ -201,7 +201,7 @@ impl Scene {
     ///the first intersection
     pub fn intersect_for_obstruction(&self, origin: Vec3,
                                      destination: Vec3) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        let ray = Ray::new_shadow(origin, (destination - origin).normalize());
+        let ray = RayUnit::new_shadow(origin, (destination - origin).unit());
         let max_t = (destination - origin).magnitude();
         if self.meshes.len() == 0 {
             None
