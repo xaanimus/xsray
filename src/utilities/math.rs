@@ -1,6 +1,5 @@
 extern crate cgmath;
-use std::ops::Neg;
-use std::ops::Range;
+use std::ops::{Neg, Range};
 use std::f32;
 
 pub type Vec3 = cgmath::Vector3<f32>;
@@ -81,4 +80,20 @@ impl<T> RayBase<T> {
         ray
     }
 }
+
+pub trait HasElemWiseExtrema {
+    fn min_elem_wise(&self, other: &Self) -> Self;
+    fn max_elem_wise(&self, other: &Self) -> Self;
+}
+
+impl HasElemWiseExtrema for Vec3 {
+    fn min_elem_wise(&self, other: &Vec3) -> Vec3{
+        Vec3::new(self.x.min(other.x), self.y.min(other.y), self.z.min(other.z))
+    }
+
+    fn max_elem_wise(&self, other: &Vec3) -> Vec3{
+        Vec3::new(self.x.max(other.x), self.y.max(other.y), self.z.max(other.z))
+    }
+}
+
 

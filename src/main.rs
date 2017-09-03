@@ -2,6 +2,7 @@
 mod engine;
 mod config_loader;
 mod utilities;
+mod bvh;
 
 use std::env;
 use std::fs::File;

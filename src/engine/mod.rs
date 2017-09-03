@@ -1,6 +1,7 @@
 
 use super::utilities::math;
 use super::utilities::color;
+use super::bvh;
 
 pub mod camera;
 
