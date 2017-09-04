@@ -1,4 +1,5 @@
 use super::math::*;
+use super::{Intersectable, IntersectionRecord};
 use std::cmp::Ordering;
 
 #[derive(Clone, Debug)]
@@ -89,7 +90,7 @@ pub enum BVHAccelerator<T: HasAABoundingBox> {
     Leaf(T)
 }
 
-impl<T: HasAABoundingBox + Clone> BVHAccelerator<T> {
+impl<T: HasAABoundingBox + Clone + Intersectable> BVHAccelerator<T> {
 
     pub fn new(objects: &[T]) -> BVHAccelerator<T> {
         BVHAccelerator::build_tree(&mut objects.to_vec())
@@ -146,3 +147,25 @@ impl<T: HasAABoundingBox + Clone> BVHAccelerator<T> {
     }
 }
 
+
+impl<T: HasAABoundingBox + Clone + Intersectable> Intersectable for BVHAccelerator<T> {
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        use self::BVHAccelerator::{Node, Leaf};
+        match self {
+            &Node{ref first, ref second, ref wrapper} => {
+                if wrapper.intersects_with_bounding_box(ray) {
+                    let (intersection_first, intersection_second) =
+                        (first.intersect(ray), second.intersect(ray));
+                    if intersection_first.t < intersection_second.t {
+                        intersection_first
+                    } else {
+                        intersection_second
+                    }
+                } else {
+                    IntersectionRecord::no_intersection()
+                }
+            },
+            &Leaf(ref elem) => elem.intersect(ray)
+        }
+    }
+}

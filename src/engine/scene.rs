@@ -11,8 +11,7 @@ use std::f32;
 
 pub trait Intersectable {
     /// check for intersection between ray and surface.
-    /// consider making this return an optional reference to intersected
-    /// surface
+    /// returns IntersectionRecord with t=inf if no intersection
     fn intersect(&self, ray: &RayUnit) -> IntersectionRecord;
 }
 
@@ -66,18 +65,12 @@ impl Intersectable for Triangle {
             let alpha = 1.0 - beta - gamma;
             //interpolate
             //TODO on construct check normals normalized
-            
             IntersectionRecord {
                 position: ray.position + t * ray.direction.vec(),
                 normal: *self.normals[0] * alpha + *self.normals[1] * beta
                     + *self.normals[2] * gamma,
                 t: t
             }
-
-            //record.normal = *self.normals[0] * alpha + *self.normals[1] * beta +
-            //    *self.normals[2] * gamma;
-            //record.position = ray.position + t * ray.direction.vec();
-            //record.t = t;
         } else {
             IntersectionRecord::no_intersection()
         }
@@ -153,16 +146,12 @@ pub struct IntersectionRecord {
 }
 
 impl IntersectionRecord {
-    pub fn uninitialized() -> IntersectionRecord {
+    pub fn no_intersection() -> IntersectionRecord {
         IntersectionRecord {
             position: Vec3{x: 0., y: 0., z: 0.},
             normal: Vec3{x: 0., y: 0., z: 0.},
-            t: f32::NAN //consider making this infty
+            t: f32::INFINITY
         }
-    }
-
-    pub fn no_intersection() -> IntersectionRecord {
-        IntersectionRecord::uninitialized()
     }
 }
 
@@ -187,8 +176,7 @@ impl Scene {
             None
         } else {
             let mut shader : Option<Rc<Shader>> = None;
-            let mut max_record = IntersectionRecord::uninitialized();
-            max_record.t = f32::INFINITY;
+            let mut max_record = IntersectionRecord::no_intersection();
             for obj in &self.meshes {
                 for tri in &obj.triangles {
                     let record = tri.intersect(ray);
@@ -216,7 +204,6 @@ impl Scene {
         if self.meshes.len() == 0 {
             None
         } else {
-            let mut record = IntersectionRecord::uninitialized();
             for obj in &self.meshes {
                 for tri in &obj.triangles {
                     let record = tri.intersect(&ray);

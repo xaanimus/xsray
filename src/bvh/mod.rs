@@ -1,6 +1,7 @@
 //!BVH Module
 
 use super::utilities::math;
+use super::engine::scene::{Intersectable, IntersectionRecord};
 
 mod bvh_accelerator;
 
