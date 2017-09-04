@@ -13,7 +13,7 @@ pub trait Intersectable {
     /// check for intersection between ray and surface.
     /// consider making this return an optional reference to intersected
     /// surface
-    fn intersect(&self, ray: &RayUnit, record: &mut IntersectionRecord);
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord;
 }
 
 pub struct Triangle {
@@ -23,7 +23,7 @@ pub struct Triangle {
 }
 
 impl Intersectable for Triangle {
-    fn intersect(&self, ray: &RayUnit, record: &mut IntersectionRecord) {
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
 
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
@@ -37,8 +37,7 @@ impl Intersectable for Triangle {
         let det_a = a_mat.determinant();
 
         if det_a == 0. {
-            record.t = f32::NAN;
-            return ()
+            return IntersectionRecord::no_intersection()
         }
 
         //compute determinant of A_1
@@ -67,13 +66,20 @@ impl Intersectable for Triangle {
             let alpha = 1.0 - beta - gamma;
             //interpolate
             //TODO on construct check normals normalized
-            record.normal = *self.normals[0] * alpha + *self.normals[1] * beta +
-                *self.normals[2] * gamma;
-            record.position = ray.position + t * ray.direction.vec();
-            record.t = t;
+            
+            IntersectionRecord {
+                position: ray.position + t * ray.direction.vec(),
+                normal: *self.normals[0] * alpha + *self.normals[1] * beta
+                    + *self.normals[2] * gamma,
+                t: t
+            }
+
+            //record.normal = *self.normals[0] * alpha + *self.normals[1] * beta +
+            //    *self.normals[2] * gamma;
+            //record.position = ray.position + t * ray.direction.vec();
+            //record.t = t;
         } else {
-            record.t = f32::NAN;
-            return ()
+            IntersectionRecord::no_intersection()
         }
     }
 }
@@ -154,6 +160,10 @@ impl IntersectionRecord {
             t: f32::NAN //consider making this infty
         }
     }
+
+    pub fn no_intersection() -> IntersectionRecord {
+        IntersectionRecord::uninitialized()
+    }
 }
 
 #[derive(Debug)]
@@ -178,11 +188,10 @@ impl Scene {
         } else {
             let mut shader : Option<Rc<Shader>> = None;
             let mut max_record = IntersectionRecord::uninitialized();
-            let mut record = IntersectionRecord::uninitialized();
             max_record.t = f32::INFINITY;
             for obj in &self.meshes {
                 for tri in &obj.triangles {
-                    tri.intersect(ray, &mut record);
+                    let record = tri.intersect(ray);
                     if record.t < max_record.t { //intersection detected
                         shader = Some(obj.shader.clone());
                         max_record = record.clone();
@@ -208,10 +217,9 @@ impl Scene {
             None
         } else {
             let mut record = IntersectionRecord::uninitialized();
-            record.t = f32::INFINITY;
             for obj in &self.meshes {
                 for tri in &obj.triangles {
-                    tri.intersect(&ray, &mut record);
+                    let record = tri.intersect(&ray);
                     if record.t <= max_t {
                         return Some((record, obj.shader.clone()));
                     }
