@@ -21,7 +21,7 @@
         },
         "meshes" : [
             {
-                "src" : "object.obj",
+                "src" : "helios.obj",
                 "shader" : "white_diffuse"
             }
         ],

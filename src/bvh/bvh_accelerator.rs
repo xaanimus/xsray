@@ -1,6 +1,7 @@
 use super::math::*;
-use super::{Intersectable, IntersectionRecord};
+use super::{Intersectable, IntersectionRecord, Shader};
 use std::cmp::Ordering;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct AABoundingBox {
@@ -33,44 +34,18 @@ pub trait HasAABoundingBox {
     }
 
     fn intersects_with_bounding_box(&self, ray: &RayUnit) -> bool {
-        let direction: &Vec3 = ray.direction.vec();
+        let bb = self.aa_bounding_box();
+        let tvecLowerBound = (bb.lower - ray.position).div_element_wise(*ray.direction.vec());
+        let tvecUpperBound = (bb.upper - ray.position).div_element_wise(*ray.direction.vec());
 
-        let (close_x, far_x) = if direction.x > 0.0 {
-            (self.aa_bounding_box().lower.x, self.aa_bounding_box().upper.x)
-        } else {
-            (self.aa_bounding_box().upper.x, self.aa_bounding_box().lower.x)
-        };
-        let (close_y, far_y) = if direction.y > 0.0 {
-            (self.aa_bounding_box().lower.y, self.aa_bounding_box().upper.y)
-        } else {
-            (self.aa_bounding_box().upper.y, self.aa_bounding_box().lower.y)
-        };
-        let (close_z, far_z) = if direction.z > 0.0 {
-            (self.aa_bounding_box().lower.z, self.aa_bounding_box().upper.z)
-        } else {
-            (self.aa_bounding_box().upper.z, self.aa_bounding_box().lower.z)
-        };
+        let tMinX = tvecLowerBound.x.min(tvecUpperBound.x);
+        let tMinY = tvecLowerBound.y.min(tvecUpperBound.y);
+        let tMinZ = tvecLowerBound.z.min(tvecUpperBound.z);
+        let tMaxX = tvecLowerBound.x.max(tvecUpperBound.x);
+        let tMaxY = tvecLowerBound.y.max(tvecUpperBound.y);
+        let tMaxZ = tvecLowerBound.z.max(tvecUpperBound.z);
 
-        let (txmin, txmax) = (
-            (close_x - ray.position.x) * direction.x,
-            (far_x - ray.position.x) * direction.x
-        );
-        let (tymin, tymax) = (
-            (close_y - ray.position.y) * direction.y,
-            (far_y - ray.position.y) * direction.y
-        );
-        let (tzmin, tzmax) = (
-            (close_z - ray.position.z) * direction.z,
-            (far_z - ray.position.z) * direction.z
-        );
-
-        let line_intersects = !(
-            txmin > tymax || txmin > tzmax ||
-            tymin > txmax || tymin > tzmax ||
-            tzmin > txmax || tzmin > tymax
-        );
-
-        line_intersects && txmax > 0.0 && tymax > 0.0 && tzmax > 0.0
+        tMinX.max(tMinY).max(tMinZ) <= tMaxX.min(tMaxY).min(tMaxZ)
     }
 }
 
@@ -87,13 +62,18 @@ fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
 #[derive(Debug)]
 pub enum BVHAccelerator<T: HasAABoundingBox> {
     Node{first: Box<BVHAccelerator<T>>, second:Box<BVHAccelerator<T>>, wrapper:AABoundingBox},
-    Leaf(T)
+    Leaf(T),
+    Nothing
 }
 
-impl<T: HasAABoundingBox + Clone + Intersectable> BVHAccelerator<T> {
+impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
 
     pub fn new(objects: &[T]) -> BVHAccelerator<T> {
         BVHAccelerator::build_tree(&mut objects.to_vec())
+    }
+
+    pub fn new_into(objects: Box<[T]>) -> BVHAccelerator<T> {
+        BVHAccelerator::build_tree(&mut objects.into_vec())
     }
 
     ///This will mutate objects, so pass in a clone if you don't
@@ -108,8 +88,8 @@ impl<T: HasAABoundingBox + Clone + Intersectable> BVHAccelerator<T> {
         let dx = objects_bbox.upper.x - objects_bbox.lower.x;
         let dy = objects_bbox.upper.y - objects_bbox.lower.y;
         let dz = objects_bbox.upper.z - objects_bbox.lower.z;
-        let x_is_largest = dx > dy && dx > dz;
-        let y_is_largest = dy > dx && dy > dz;
+        let x_is_largest = dx >= dy && dx >= dz;
+        let y_is_largest = dy >= dx && dy >= dz;
 
         //sort objects
         if x_is_largest {
@@ -147,25 +127,42 @@ impl<T: HasAABoundingBox + Clone + Intersectable> BVHAccelerator<T> {
     }
 }
 
-
-impl<T: HasAABoundingBox + Clone + Intersectable> Intersectable for BVHAccelerator<T> {
+//TODO take into account ray range
+impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
     fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        match self.intersect_with_shader(ray) {
+            Some((record, _)) => record,
+            None => IntersectionRecord::no_intersection()
+        }
+    }
+
+    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
         use self::BVHAccelerator::{Node, Leaf};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray) {
                     let (intersection_first, intersection_second) =
-                        (first.intersect(ray), second.intersect(ray));
-                    if intersection_first.t < intersection_second.t {
-                        intersection_first
-                    } else {
-                        intersection_second
+                        (first.intersect_with_shader(ray), second.intersect_with_shader(ray));
+
+                    match (intersection_first, intersection_second) {
+                        (Some((first_record, first_shader)),
+                         Some((second_record, second_shader))) => {
+                            if first_record.t < second_record.t {
+                                Some((first_record, first_shader))
+                            } else {
+                                Some((second_record, second_shader))
+                            }
+                        },
+                        (None, Some(second)) => Some(second),
+                        (Some(first), None) => Some(first),
+                        (None, None) => None
                     }
                 } else {
-                    IntersectionRecord::no_intersection()
+                    None
                 }
             },
-            &Leaf(ref elem) => elem.intersect(ray)
+            &Leaf(ref elem) => elem.intersect_with_shader(ray),
+            ref Nothing => None
         }
     }
 }

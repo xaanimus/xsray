@@ -3,7 +3,9 @@ extern crate cgmath;
 use super::math::*;
 use super::color::*;
 use super::camera::*;
+use super::scene_spec::SceneSpec;
 use super::shader::{Shader};
+use super::bvh_accelerator::{BVHAccelerator, HasAABoundingBox, AABoundingBox};
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
@@ -13,12 +15,68 @@ pub trait Intersectable {
     /// check for intersection between ray and surface.
     /// returns IntersectionRecord with t=inf if no intersection
     fn intersect(&self, ray: &RayUnit) -> IntersectionRecord;
+    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)>;
 }
 
+#[derive(Debug)]
 pub struct Triangle {
-    //TODO pub testing only
+    //TODO why is this Rc?
     pub positions: [Rc<Vec3>; 3],
-    pub normals: [Rc<Vec3>; 3]
+    pub normals: [Rc<Vec3>; 3],
+    pub shader: Rc<Shader>
+}
+
+impl Clone for Triangle {
+    fn clone(&self) -> Triangle {
+        Triangle {
+            positions: [self.positions[0].clone(),
+                        self.positions[1].clone(),
+                        self.positions[2].clone()],
+            normals: [self.normals[0].clone(),
+                        self.normals[1].clone(),
+                        self.normals[2].clone()],
+            shader: self.shader.clone()
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BVHTriangleWrapper {
+    pub triangle: Triangle,
+    pub bounding_box: AABoundingBox,
+}
+
+impl BVHTriangleWrapper {
+    pub fn new(triangle: Triangle) -> BVHTriangleWrapper {
+        let bounding_box =
+            AABoundingBox {
+                lower: triangle.positions[0]
+                    .min_elem_wise(triangle.positions[1].as_ref())
+                    .min_elem_wise(triangle.positions[2].as_ref()),
+                upper: triangle.positions[0]
+                    .max_elem_wise(triangle.positions[1].as_ref())
+                    .max_elem_wise(triangle.positions[2].as_ref())
+            };
+        BVHTriangleWrapper {
+            triangle: triangle,
+            bounding_box: bounding_box
+        }
+    }
+}
+
+impl Intersectable for BVHTriangleWrapper {
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        self.triangle.intersect(ray)
+    }
+    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
+        self.triangle.intersect_with_shader(ray)
+    }
+}
+
+impl HasAABoundingBox for BVHTriangleWrapper {
+    fn aa_bounding_box(&self) -> &AABoundingBox {
+        &self.bounding_box
+    }
 }
 
 impl Intersectable for Triangle {
@@ -75,6 +133,15 @@ impl Intersectable for Triangle {
             IntersectionRecord::no_intersection()
         }
     }
+
+    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
+        let record = self.intersect(ray);
+        if record.t == f32::INFINITY {
+            None
+        } else {
+            Some((record, self.shader.clone()))
+        }
+    }
 }
 
 pub struct MeshInfo {
@@ -119,7 +186,8 @@ impl MeshObject {
                 ) {
                     let triangle = Triangle {
                         positions: [pos0.clone(), pos1.clone(), pos2.clone()],
-                        normals: [norm0.clone(), norm1.clone(), norm2.clone()]
+                        normals: [norm0.clone(), norm1.clone(), norm2.clone()],
+                        shader: shader.clone()
                     };
                     mesh_object.triangles.push(triangle);
                 } else {
@@ -165,54 +233,43 @@ pub struct Light {
 pub struct Scene {
     pub background_color: Color3,
     pub camera: Camera,
-    pub shaders: HashMap<String, Rc<Shader>>,
-    pub meshes: Vec<MeshObject>,
-    pub lights: Vec<Light>
+    pub shaders: HashMap<String, Rc<Shader>>, //delet this
+    //pub meshes: Vec<MeshObject>, //refactor code to maybe include ref to object intersected with
+    pub lights: Vec<Light>,
+    pub intersectionAccel: BVHAccelerator<BVHTriangleWrapper>,
 }
 
 impl Scene {
-    pub fn intersect(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        if self.meshes.len() == 0 {
-            None
-        } else {
-            let mut shader : Option<Rc<Shader>> = None;
-            let mut max_record = IntersectionRecord::no_intersection();
-            for obj in &self.meshes {
-                for tri in &obj.triangles {
-                    let record = tri.intersect(ray);
-                    if record.t < max_record.t { //intersection detected
-                        shader = Some(obj.shader.clone());
-                        max_record = record.clone();
-                    }
-                }
-            }
-
-            if f32::is_finite(max_record.t) {
-                Some((max_record, shader.unwrap()))
-            } else {
-                None
-            }
+    pub fn new(spec: SceneSpec) -> Scene {
+        let triangle_wrappers = spec.meshes.into_iter()
+            .fold(vec![], |acc, mesh| {
+                mesh.triangles.into_iter()
+                    .map(|triangle: Triangle| BVHTriangleWrapper::new(triangle))
+                    .collect()
+            });
+        Scene {
+            background_color: spec.background_color,
+            camera: spec.camera,
+            shaders: spec.shaders,
+            lights: spec.lights,
+            intersectionAccel: BVHAccelerator::new_into(triangle_wrappers.into_boxed_slice())
         }
+    }
+    
+    pub fn intersect(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
+        self.intersectionAccel.intersect_with_shader(ray)
     }
 
     ///detects an intersection between origin and destination. Not necessarily
     ///the first intersection
     pub fn intersect_for_obstruction(&self, origin: Vec3,
                                      destination: Vec3) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        let ray = RayUnit::new_shadow(origin, (destination - origin).unit());
-        let max_t = (destination - origin).magnitude();
-        if self.meshes.len() == 0 {
-            None
-        } else {
-            for obj in &self.meshes {
-                for tri in &obj.triangles {
-                    let record = tri.intersect(&ray);
-                    if record.t <= max_t {
-                        return Some((record, obj.shader.clone()));
-                    }
-                }
-            }
-            None
-        }
+        //TODO optimize for shadow detection
+        let ray = {
+            let mut ray = RayUnit::new_shadow(origin, (destination - origin).unit());
+            ray.t_range.end = (destination - origin).magnitude();
+            ray
+        };
+        self.intersect(&ray)
     }
 }

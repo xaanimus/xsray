@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 extern crate obj;
 extern crate json;
+use engine::scene_spec::*;
 use engine::scene::{Scene, MeshObject, MeshInfo, Light};
 use utilities::math::*;
 use engine::camera::*;
@@ -231,7 +232,7 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
             // Parse scene object
             let aspect_ratio = (settings.resolution_width / settings.resolution_height) as f32;
             let sc_obj = &obj["scene"];
-            let scene = try!{
+            let spec = try!{
                 if let (Some(backgnd_color), Some(camera)) = (
                     parse_vec3(&sc_obj["background_color"]),
                     parse_camera(&sc_obj["camera"], aspect_ratio)
@@ -242,7 +243,7 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
                     {
                         let meshes = try!(parse_mesh_array(&sc_obj["meshes"], &shaders));
                         let lights = try!(parse_lights(&sc_obj["lights"]));
-                        Ok(Scene {
+                        Ok(SceneSpec {
                             background_color: backgnd_color,
                             camera: camera,
                             shaders: shaders,
@@ -255,10 +256,10 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
                 }
             };
 
-            Ok(Config{
-                settings: settings,
-                scene: scene
-            })
+            Ok(Config::new(
+                settings,
+                spec
+            ))
         }
     }
 }

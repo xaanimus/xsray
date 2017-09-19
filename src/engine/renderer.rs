@@ -3,6 +3,7 @@ extern crate image;
 use std::cmp::max;
 use self::image::{RgbImage};
 use super::scene::*;
+use super::scene_spec::*;
 
 //clean
 use super::color::*;
@@ -32,6 +33,13 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn new(settings: RenderSettings, scene_spec: SceneSpec) -> Config {
+        Config {
+            settings: settings,
+            scene: Scene::new(scene_spec)
+        }
+    }
+
     pub fn render(&self) -> RgbImage {
         // make buffer
         let mut buffer = RgbImage::new(i32_to_u32(self.settings.resolution_width),
