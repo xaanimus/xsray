@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::Read;
 
 fn main() {
-
     //load scene file
     let arguments : Vec<String> = env::args().collect();
     let filename = &arguments[1];
@@ -19,8 +18,7 @@ fn main() {
 
     //load scene
     let render_config = config_loader::load_config_from_string(s.as_str()).unwrap();
-
+    
     let buffer = render_config.render();
     buffer.save("render_out.png").unwrap();
-
 }

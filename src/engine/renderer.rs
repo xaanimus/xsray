@@ -3,7 +3,7 @@ extern crate image;
 use std::cmp::max;
 use self::image::{RgbImage};
 use super::scene::*;
-use super::scene_spec::*;
+use super::scene_builder::*;
 
 //clean
 use super::color::*;
@@ -33,10 +33,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(settings: RenderSettings, scene_spec: SceneSpec) -> Config {
+    pub fn new(settings: RenderSettings, scene: Scene) -> Config {
         Config {
             settings: settings,
-            scene: Scene::new(scene_spec)
+            scene: scene
         }
     }
 

@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 extern crate obj;
 extern crate json;
-use engine::scene_spec::*;
+use engine::scene_builder::*;
 use engine::scene::{Scene, MeshObject, MeshInfo, Light};
 use utilities::math::*;
 use engine::camera::*;
@@ -213,12 +213,12 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
         Ok(obj) => {
 
             // parse render_settings object
-            let settings = try!{
+            let settings =
                 if let (Some(width), Some(height), Some(exp),) = (
                     obj["render_settings"]["resolution_width"].as_i32(),
                     obj["render_settings"]["resolution_height"].as_i32(),
-                    obj["render_settings"]["exposure"].as_f32())
-                {
+                    obj["render_settings"]["exposure"].as_f32()
+                ) {
                     Ok(RenderSettings {
                         resolution_width: width,
                         resolution_height: height,
@@ -226,39 +226,36 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
                     })
                 } else {
                     Err(ConfigError::ConfigJsonError("config missing fields in render_settings"))
-                }
-            };
+                }?;
 
             // Parse scene object
             let aspect_ratio = (settings.resolution_width / settings.resolution_height) as f32;
             let sc_obj = &obj["scene"];
-            let spec = try!{
-                if let (Some(backgnd_color), Some(camera)) = (
-                    parse_vec3(&sc_obj["background_color"]),
-                    parse_camera(&sc_obj["camera"], aspect_ratio)
-                )
+            let scene: Scene = if let (Some(backgnd_color), Some(camera)) = (
+                parse_vec3(&sc_obj["background_color"]),
+                parse_camera(&sc_obj["camera"], aspect_ratio)
+            ) {
+                let shaders = parse_shader_array(&sc_obj["shaders"])
+                    .unwrap_or(HashMap::<String, Rc<Shader>>::new());
                 {
-                    let shaders = parse_shader_array(&sc_obj["shaders"])
-                        .unwrap_or(HashMap::<String, Rc<Shader>>::new());
-                    {
-                        let meshes = try!(parse_mesh_array(&sc_obj["meshes"], &shaders));
-                        let lights = try!(parse_lights(&sc_obj["lights"]));
-                        Ok(SceneSpec {
-                            background_color: backgnd_color,
-                            camera: camera,
-                            shaders: shaders,
-                            meshes: meshes,
-                            lights: lights
-                        })
-                    }
-                } else {
-                    Err(ConfigError::ConfigJsonError("config missing fields in scene"))
+                    let meshes = try!(parse_mesh_array(&sc_obj["meshes"], &shaders));
+                    let lights = try!(parse_lights(&sc_obj["lights"]));
+                    Ok(SceneBuilder::new()
+                        .background_color(backgnd_color)
+                        .camera(camera)
+                        .shaders(shaders)
+                        .meshes(meshes)
+                        .lights(lights)
+                        .build()
+                    )
                 }
-            };
+            } else {
+                Err(ConfigError::ConfigJsonError("config missing fields in scene"))
+            }?;
 
             Ok(Config::new(
                 settings,
-                spec
+                scene
             ))
         }
     }

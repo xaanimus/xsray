@@ -6,7 +6,7 @@ use super::bvh::bvh_accelerator;
 pub mod camera;
 
 pub mod scene;
-pub mod scene_spec;
+pub mod scene_builder;
 
 pub mod shader;
 pub mod renderer;

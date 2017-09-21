@@ -32,6 +32,17 @@ pub struct Camera {
 }
 
 impl Camera {
+    pub fn new_default() -> Camera {
+        Camera {
+            position: Vec3::new(0.0, 0.0, 0.0),
+            basis: CameraBasis::xyz(),
+            direction: -Vec3::unit_z().unit(),
+            plane_width: 1.0,
+            plane_height: 1.0,
+            plane_distance: 1.0
+        }
+    }
+
     pub fn new(position: Vec3, direction: Vec3, up: Vec3, plane_width: f32,
            plane_height: f32, plane_distance: f32) -> Camera {
         let mut camera = Camera {

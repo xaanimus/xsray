@@ -3,7 +3,7 @@ extern crate cgmath;
 use super::math::*;
 use super::color::*;
 use super::camera::*;
-use super::scene_spec::SceneSpec;
+use super::scene_builder::SceneBuilder;
 use super::shader::{Shader};
 use super::bvh_accelerator::{BVHAccelerator, HasAABoundingBox, AABoundingBox};
 use std::rc::Rc;
@@ -236,28 +236,28 @@ pub struct Scene {
     pub shaders: HashMap<String, Rc<Shader>>, //delet this
     //pub meshes: Vec<MeshObject>, //refactor code to maybe include ref to object intersected with
     pub lights: Vec<Light>,
-    pub intersectionAccel: BVHAccelerator<BVHTriangleWrapper>,
+    pub intersection_accel: BVHAccelerator<BVHTriangleWrapper>,
 }
 
 impl Scene {
-    pub fn new(spec: SceneSpec) -> Scene {
-        let triangle_wrappers = spec.meshes.into_iter()
+    pub fn new_from_builder(builder: SceneBuilder) -> Scene {
+        let triangle_wrappers = builder.meshes.into_iter()
             .fold(vec![], |acc, mesh| {
                 mesh.triangles.into_iter()
                     .map(|triangle: Triangle| BVHTriangleWrapper::new(triangle))
                     .collect()
             });
         Scene {
-            background_color: spec.background_color,
-            camera: spec.camera,
-            shaders: spec.shaders,
-            lights: spec.lights,
-            intersectionAccel: BVHAccelerator::new_into(triangle_wrappers.into_boxed_slice())
+            background_color: builder.background_color,
+            camera: builder.camera,
+            shaders: builder.shaders,
+            lights: builder.lights,
+            intersection_accel: BVHAccelerator::new_into(triangle_wrappers.into_boxed_slice())
         }
     }
-    
+
     pub fn intersect(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        self.intersectionAccel.intersect_with_shader(ray)
+        self.intersection_accel.intersect_with_shader(ray)
     }
 
     ///detects an intersection between origin and destination. Not necessarily
