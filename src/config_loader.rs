@@ -44,7 +44,7 @@ impl<'a, 'b> Error for ConfigError<'a, 'b> {
 impl<'a, 'b> Display for ConfigError<'a, 'b> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if let &ConfigError::ConfigJsonError(msg) = self {
-            try!(write!(f, "{}", msg));
+            write!(f, "{}", msg)?;
         }
         write!(f, "{}", self.description())
     }
