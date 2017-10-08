@@ -145,7 +145,6 @@ impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
                     } else {
                         second_intersection
                     }
-
                 } else {
                     return IntersectionRecord::no_intersection()
                 }

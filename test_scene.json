@@ -10,7 +10,7 @@
             "position" : [0.0, 0.0, 10.0],
             "direction" : [0.0, 0.0, -1.0],
             "up" : [0.0, 1.0, 0.0],
-            "plane_distance" : 13.0,
+            "plane_distance" : 7.0,
             "plane_width" : 5.0
         },
         "shaders" : {
@@ -27,11 +27,11 @@
         ],
         "lights" : [
             {
-                "position" : [0.0, 3.0, 3.0],
+                "position" : [2.5, 2.5, 2.5],
                 "intensity": 10.0
             },
             {
-                "position" : [3.0, 3.0, 0.0],
+                "position" : [-2.5, -2.5, -2.5],
                 "intensity": 10.0
             }
         ]

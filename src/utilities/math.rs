@@ -76,7 +76,7 @@ impl<T> RayBase<T> {
 
     pub fn new_shadow(position: Vec3, direction: T) -> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
-        ray.t_range.start = 10.0 * f32::EPSILON;
+        ray.t_range.start = 100.0 * f32::EPSILON;
         ray
     }
 }
