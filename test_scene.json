@@ -21,7 +21,7 @@
         },
         "meshes" : [
             {
-                "src" : "assets/suzanne_lowpoly.obj",
+                "src" : "assets/rock.obj",
                 "shader" : "white_diffuse"
             }
         ],
