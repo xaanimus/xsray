@@ -19,9 +19,8 @@ pub trait Intersectable {
 
 #[derive(Debug)]
 pub struct Triangle {
-    //TODO why is this Rc?
-    pub positions: [Rc<Vec3>; 3],
-    pub normals: [Rc<Vec3>; 3],
+    pub positions: [Vec3; 3],
+    pub normals: [Vec3; 3],
     pub shader: Rc<Shader>
 }
 
@@ -50,11 +49,11 @@ impl BVHTriangleWrapper {
         let bounding_box =
             AABoundingBox {
                 lower: triangle.positions[0]
-                    .min_elem_wise(triangle.positions[1].as_ref())
-                    .min_elem_wise(triangle.positions[2].as_ref()),
+                    .min_elem_wise(&triangle.positions[1])
+                    .min_elem_wise(&triangle.positions[2]),
                 upper: triangle.positions[0]
-                    .max_elem_wise(triangle.positions[1].as_ref())
-                    .max_elem_wise(triangle.positions[2].as_ref())
+                    .max_elem_wise(&triangle.positions[1])
+                    .max_elem_wise(&triangle.positions[2])
             };
         BVHTriangleWrapper {
             triangle: triangle,
@@ -80,10 +79,10 @@ impl Intersectable for Triangle {
 
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
-        let a_col_1 = *self.positions[0] - *self.positions[1]; //a - b
-        let a_col_2 = *self.positions[0] - *self.positions[2]; //a - c
+        let a_col_1 = self.positions[0] - self.positions[1]; //a - b
+        let a_col_2 = self.positions[0] - self.positions[2]; //a - c
         let a_col_3 = ray.direction.vec(); //d
-        let b_col = *self.positions[0] - ray.position;
+        let b_col = self.positions[0] - ray.position;
 
         //compute determinant of A
         let mut a_mat = Matrix3::from_cols(a_col_1, a_col_2, *a_col_3);
@@ -121,8 +120,7 @@ impl Intersectable for Triangle {
             //TODO on construct check normals normalized
             IntersectionRecord {
                 position: ray.position + t * ray.direction.vec(),
-                normal: *self.normals[0] * alpha + *self.normals[1] * beta
-                    + *self.normals[2] * gamma,
+                normal: self.normals[0] * alpha + self.normals[1] * beta + self.normals[2] * gamma,
                 t: t,
                 shader: Some(self.shader.clone())
             }
@@ -140,8 +138,6 @@ pub struct MeshInfo {
 }
 
 pub struct MeshObject {
-    pub positions: Vec<Rc<Vec3>>,
-    pub normals: Vec<Rc<Vec3>>,
     pub triangles: Vec<Triangle>,
     pub shader: Rc<Shader>
 }
@@ -150,32 +146,25 @@ impl MeshObject {
     pub fn new(mesh_info: &MeshInfo, shader: &Rc<Shader>) -> Option<MeshObject> {
 
         let mut mesh_object = MeshObject {
-            positions: mesh_info.positions.iter()
-                .map(|pos| Rc::new(Vec3::new(pos.x, pos.y, pos.z))).collect(),
-            normals: mesh_info.normals.iter()
-                .map(|pos| Rc::new(Vec3::new(pos.x, pos.y, pos.z))).collect(),
             triangles: Vec::<Triangle>::new(),
             shader: shader.clone()
         };
 
         {
-            let pos_arr = &mesh_object.positions;
-            let norm_arr = &mesh_object.normals;
-
             for &(positions, normals) in &mesh_info.triangles {
                 //positions
                 if let (Some(pos0), Some(pos1), Some(pos2),
                         Some(norm0), Some(norm1), Some(norm2)) = (
-                    pos_arr.get(positions[0]),
-                    pos_arr.get(positions[1]),
-                    pos_arr.get(positions[2]),
-                    norm_arr.get(normals[0]),
-                    norm_arr.get(normals[1]),
-                    norm_arr.get(normals[2]),
+                    mesh_info.positions.get(positions[0]),
+                    mesh_info.positions.get(positions[1]),
+                    mesh_info.positions.get(positions[2]),
+                    mesh_info.normals.get(normals[0]),
+                    mesh_info.normals.get(normals[1]),
+                    mesh_info.normals.get(normals[2]),
                 ) {
                     let triangle = Triangle {
-                        positions: [pos0.clone(), pos1.clone(), pos2.clone()],
-                        normals: [norm0.clone(), norm1.clone(), norm2.clone()],
+                        positions: [*pos0, *pos1, *pos2],
+                        normals: [*norm0, *norm1, *norm2],
                         shader: shader.clone()
                     };
                     mesh_object.triangles.push(triangle);
