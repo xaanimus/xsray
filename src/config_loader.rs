@@ -1,4 +1,4 @@
-
+//TODO refactor this file to make less ugly
 use std::error::Error;
 use std::fmt::{Formatter, Display};
 use std::fmt;
@@ -121,6 +121,10 @@ fn polygons_to_triangles(polys: &Vec<obj::raw::object::Polygon>)
                 let ind = ([vn_vec[0].0, vn_vec[1].0, vn_vec[2].0],
                            [vn_vec[0].1, vn_vec[1].1, vn_vec[2].1]);
                 collect.push(ind);
+            },
+            //TODO make this less ugly
+            &obj::raw::object::Polygon::PN(ref vn_vec) if vn_vec.len() != 3 => {
+                println!("Fatal error: polygons must be triangles!");
             },
             _ => return None
         }

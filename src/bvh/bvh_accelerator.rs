@@ -2,6 +2,7 @@ use super::math::*;
 use super::{Intersectable, IntersectionRecord, Shader};
 use std::cmp::Ordering;
 use std::rc::Rc;
+use std::f32;
 
 #[derive(Clone, Debug)]
 pub struct AABoundingBox {
@@ -33,6 +34,7 @@ pub trait HasAABoundingBox {
         (bb.lower + bb.upper) / 2.0
     }
 
+    //consider precomputing inverse of ray direction
     fn intersects_with_bounding_box(&self, ray: &RayUnit) -> bool {
         let bb = self.aa_bounding_box();
         let tvecLowerBound = (bb.lower - ray.position).div_element_wise(*ray.direction.vec());
@@ -129,40 +131,27 @@ impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
 
 //TODO take into account ray range
 impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
-    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
-        match self.intersect_with_shader(ray) {
-            Some((record, _)) => record,
-            None => IntersectionRecord::no_intersection()
-        }
-    }
 
-    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
         use self::BVHAccelerator::{Node, Leaf};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray) {
-                    let (intersection_first, intersection_second) =
-                        (first.intersect_with_shader(ray), second.intersect_with_shader(ray));
+                    let (first_intersection, second_intersection) =
+                        (first.intersect(&ray), second.intersect(&ray));
 
-                    match (intersection_first, intersection_second) {
-                        (Some((first_record, first_shader)),
-                         Some((second_record, second_shader))) => {
-                            if first_record.t < second_record.t {
-                                Some((first_record, first_shader))
-                            } else {
-                                Some((second_record, second_shader))
-                            }
-                        },
-                        (None, Some(second)) => Some(second),
-                        (Some(first), None) => Some(first),
-                        (None, None) => None
+                    if first_intersection.t < second_intersection.t {
+                        first_intersection
+                    } else {
+                        second_intersection
                     }
+
                 } else {
-                    None
+                    return IntersectionRecord::no_intersection()
                 }
             },
-            &Leaf(ref elem) => elem.intersect_with_shader(ray),
-            ref Nothing => None
+            &Leaf(ref elem) => elem.intersect(ray),
+            ref Nothing => IntersectionRecord::no_intersection()
         }
     }
 }

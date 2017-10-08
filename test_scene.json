@@ -7,10 +7,10 @@
     "scene" : {
         "background_color" : [0.0, 0.0, 0.1],
         "camera" : {
-            "position" : [4.0, 3.0, 4.0],
-            "direction" : [-1.0, -0.3, -1.0],
+            "position" : [0.0, 0.0, 10.0],
+            "direction" : [0.0, 0.0, -1.0],
             "up" : [0.0, 1.0, 0.0],
-            "plane_distance" : 5.0,
+            "plane_distance" : 13.0,
             "plane_width" : 5.0
         },
         "shaders" : {
@@ -21,7 +21,7 @@
         },
         "meshes" : [
             {
-                "src" : "helios.obj",
+                "src" : "assets/suzanne_lowpoly.obj",
                 "shader" : "white_diffuse"
             }
         ],

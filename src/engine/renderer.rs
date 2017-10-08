@@ -64,10 +64,10 @@ impl Config {
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
         let ray = self.scene.camera.shoot_ray(u,v);
         //try to intersect with object.
-        if let Some((rec, shader)) = self.scene.intersect(&ray) {
-            shader.shade(&rec, &self.scene)
+        let intersection = self.scene.intersect(&ray);
+        if intersection.t.is_finite() && intersection.shader.is_some() {
+            intersection.shader.as_ref().unwrap().shade(&intersection, &self.scene)
         } else {
-            //if no intersection, output background
             self.scene.background_color
         }
     }

@@ -15,7 +15,6 @@ pub trait Intersectable {
     /// check for intersection between ray and surface.
     /// returns IntersectionRecord with t=inf if no intersection
     fn intersect(&self, ray: &RayUnit) -> IntersectionRecord;
-    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)>;
 }
 
 #[derive(Debug)]
@@ -67,9 +66,6 @@ impl BVHTriangleWrapper {
 impl Intersectable for BVHTriangleWrapper {
     fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
         self.triangle.intersect(ray)
-    }
-    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        self.triangle.intersect_with_shader(ray)
     }
 }
 
@@ -127,21 +123,14 @@ impl Intersectable for Triangle {
                 position: ray.position + t * ray.direction.vec(),
                 normal: *self.normals[0] * alpha + *self.normals[1] * beta
                     + *self.normals[2] * gamma,
-                t: t
+                t: t,
+                shader: Some(self.shader.clone())
             }
         } else {
             IntersectionRecord::no_intersection()
         }
     }
 
-    fn intersect_with_shader(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        let record = self.intersect(ray);
-        if record.t == f32::INFINITY {
-            None
-        } else {
-            Some((record, self.shader.clone()))
-        }
-    }
 }
 
 pub struct MeshInfo {
@@ -208,14 +197,17 @@ impl fmt::Debug for MeshObject {
 
 #[derive(Clone)]
 pub struct IntersectionRecord {
+    pub shader: Option<Rc<Shader>>,
     pub position: Vec3,
     pub normal: Vec3,
     pub t: f32
 }
 
 impl IntersectionRecord {
+    //TODO make this a static constant?
     pub fn no_intersection() -> IntersectionRecord {
         IntersectionRecord {
+            shader: None,
             position: Vec3{x: 0., y: 0., z: 0.},
             normal: Vec3{x: 0., y: 0., z: 0.},
             t: f32::INFINITY
@@ -256,14 +248,15 @@ impl Scene {
         }
     }
 
-    pub fn intersect(&self, ray: &RayUnit) -> Option<(IntersectionRecord, Rc<Shader>)> {
-        self.intersection_accel.intersect_with_shader(ray)
+    pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        self.intersection_accel.intersect(ray)
     }
 
     ///detects an intersection between origin and destination. Not necessarily
     ///the first intersection
-    pub fn intersect_for_obstruction(&self, origin: Vec3,
-                                     destination: Vec3) -> Option<(IntersectionRecord, Rc<Shader>)> {
+    pub fn intersect_for_obstruction(
+        &self, origin: Vec3, destination: Vec3
+    ) -> IntersectionRecord {
         //TODO optimize for shadow detection
         let ray = {
             let mut ray = RayUnit::new_shadow(origin, (destination - origin).unit());
