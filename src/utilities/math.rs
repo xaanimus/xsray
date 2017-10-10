@@ -5,7 +5,6 @@ use std::f32;
 pub type Vec3 = cgmath::Vector3<f32>;
 pub type Matrix3 = cgmath::Matrix3<f32>;
 
-//TODO why am I doing this?
 pub use self::cgmath::{Zero, SquareMatrix, InnerSpace, ElementWise};
 
 ///A Vec3 that's always normalized

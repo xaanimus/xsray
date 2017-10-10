@@ -21,7 +21,7 @@
         },
         "meshes" : [
             {
-                "src" : "assets/rock.obj",
+                "src" : "assets/helios.obj",
                 "shader" : "white_diffuse"
             }
         ],

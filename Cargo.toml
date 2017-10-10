@@ -9,3 +9,5 @@ cgmath = "0.12.0"
 json = "*"
 obj-rs = "0.4.17"
 
+[profile.release]
+debug = true

@@ -1,4 +1,6 @@
 //TODO refactor this file to make less ugly
+//TODO make these errors better
+//TODO make the filepaths in the scene file relative to the scene config's directory
 use std::error::Error;
 use std::fmt::{Formatter, Display};
 use std::fmt;

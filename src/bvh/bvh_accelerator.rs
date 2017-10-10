@@ -35,10 +35,10 @@ pub trait HasAABoundingBox {
     }
 
     //consider precomputing inverse of ray direction
-    fn intersects_with_bounding_box(&self, ray: &RayUnit) -> bool {
+    fn intersects_with_bounding_box(&self, ray: &RayUnit, inverse_direction: &Vec3) -> bool {
         let bb = self.aa_bounding_box();
-        let tvecLowerBound = (bb.lower - ray.position).div_element_wise(*ray.direction.vec());
-        let tvecUpperBound = (bb.upper - ray.position).div_element_wise(*ray.direction.vec());
+        let tvecLowerBound = (bb.lower - ray.position).mul_element_wise(*inverse_direction);
+        let tvecUpperBound = (bb.upper - ray.position).mul_element_wise(*inverse_direction);
 
         let tMinX = tvecLowerBound.x.min(tvecUpperBound.x);
         let tMinY = tvecLowerBound.y.min(tvecUpperBound.y);
@@ -69,7 +69,6 @@ pub enum BVHAccelerator<T: HasAABoundingBox> {
 }
 
 impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
-
     pub fn new(objects: &[T]) -> BVHAccelerator<T> {
         BVHAccelerator::build_tree(&mut objects.to_vec())
     }
@@ -119,9 +118,9 @@ impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
                 }
             })
         };
-        let m = objects.len()/2;
+        let m = objects.len() / 2;
         let (left_objects, right_objects) = objects.split_at_mut(m);
-        BVHAccelerator::Node{
+        BVHAccelerator::Node {
             first: Box::new(BVHAccelerator::build_tree(left_objects)),
             second: Box::new(BVHAccelerator::build_tree(right_objects)),
             wrapper: objects_bbox
@@ -129,16 +128,15 @@ impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
     }
 }
 
-//TODO take into account ray range
-impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
-
-    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+impl<T: HasAABoundingBox + Intersectable> BVHAccelerator<T> {
+    pub fn intersect_opt(&self, ray: &RayUnit, inverse_direction: &Vec3) -> IntersectionRecord {
         use self::BVHAccelerator::{Node, Leaf};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
-                if wrapper.intersects_with_bounding_box(ray) {
+                if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
                     let (first_intersection, second_intersection) =
-                        (first.intersect(&ray), second.intersect(&ray));
+                        (first.intersect_opt(&ray, inverse_direction),
+                         second.intersect_opt(&ray, inverse_direction));
 
                     if first_intersection.t < second_intersection.t {
                         first_intersection
@@ -153,4 +151,14 @@ impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
             ref Nothing => IntersectionRecord::no_intersection()
         }
     }
+}
+
+//TODO take into account ray range
+impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
+
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
+        self.intersect_opt(ray, &inverse_direction)
+    }
+
 }
