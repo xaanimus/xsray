@@ -134,7 +134,6 @@ impl BVHAccelerator {
 }
 
 impl BVHAccelerator {
-
     /// Intersect with bounded boxes. returns true if there is an intersection, and
     /// appends intersection_indices with indices of intersected boxes
     fn intersect_box_intern(
@@ -167,6 +166,10 @@ impl BVHAccelerator {
         }
     }
 
+    /// Intersects with bounding boxes to find indices of objects that
+    /// may intersect with the ray. Due to the way th bvh tree is build, the
+    /// returned indices will already be sorted, so the caller can iterate through
+    /// the objects in a way that benefits from cache locality
     pub fn intersect_boxes(&self, ray: &RayUnit, obstruction_only: bool) -> Vec<usize> {
         let mut indices = Vec::<usize>::new();
         let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
