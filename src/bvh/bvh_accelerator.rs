@@ -129,14 +129,22 @@ impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
 }
 
 impl<T: HasAABoundingBox + Intersectable> BVHAccelerator<T> {
-    pub fn intersect_opt(&self, ray: &RayUnit, inverse_direction: &Vec3) -> IntersectionRecord {
-        use self::BVHAccelerator::{Node, Leaf};
+
+    pub fn intersect_opt(
+        &self, ray: &RayUnit,
+        inverse_direction: &Vec3,
+        obstruction_only: bool
+    ) -> IntersectionRecord {
+        use self::BVHAccelerator::{Node, Leaf, Nothing};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
-                    let (first_intersection, second_intersection) =
-                        (first.intersect_opt(&ray, inverse_direction),
-                         second.intersect_opt(&ray, inverse_direction));
+                    let first_intersection = first.intersect_opt(&ray, inverse_direction, obstruction_only);
+                    if obstruction_only && first_intersection.t.is_finite() {
+                        return first_intersection;
+                    }
+
+                    let second_intersection = second.intersect_opt(&ray, inverse_direction, obstruction_only);
 
                     if first_intersection.t < second_intersection.t {
                         first_intersection
@@ -148,7 +156,7 @@ impl<T: HasAABoundingBox + Intersectable> BVHAccelerator<T> {
                 }
             },
             &Leaf(ref elem) => elem.intersect(ray),
-            ref Nothing => IntersectionRecord::no_intersection()
+            &Nothing => IntersectionRecord::no_intersection()
         }
     }
 }
@@ -156,9 +164,10 @@ impl<T: HasAABoundingBox + Intersectable> BVHAccelerator<T> {
 //TODO take into account ray range
 impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
 
-    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+    fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
         let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
-        self.intersect_opt(ray, &inverse_direction)
+        self.intersect_opt(ray, &inverse_direction, obstruction_only)
     }
 
 }
+

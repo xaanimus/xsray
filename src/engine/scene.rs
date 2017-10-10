@@ -14,7 +14,11 @@ use std::f32;
 pub trait Intersectable {
     /// check for intersection between ray and surface.
     /// returns IntersectionRecord with t=inf if no intersection
-    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord;
+    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        self.intersect_obstruct(ray, false)
+    }
+
+    fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord;
 }
 
 #[derive(Debug)]
@@ -63,7 +67,7 @@ impl BVHTriangleWrapper {
 }
 
 impl Intersectable for BVHTriangleWrapper {
-    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+    fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
         self.triangle.intersect(ray)
     }
 }
@@ -75,7 +79,7 @@ impl HasAABoundingBox for BVHTriangleWrapper {
 }
 
 impl Intersectable for Triangle {
-    fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+    fn intersect_obstruct(&self, ray: &RayUnit, _: bool) -> IntersectionRecord {
 
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
@@ -252,6 +256,6 @@ impl Scene {
             ray.t_range.end = (destination - origin).magnitude();
             ray
         };
-        self.intersect(&ray)
+        self.intersection_accel.intersect_obstruct(&ray, true)
     }
 }
