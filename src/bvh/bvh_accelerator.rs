@@ -47,6 +47,8 @@ pub trait HasAABoundingBox {
         let tMaxZ = tvecLowerBound.z.max(tvecUpperBound.z);
 
         let t_maximum_of_lower_bounds = tMinX.max(tMinY).max(tMinZ);
+        //TODO BUG
+        //TODO update this to check that the intersection of the box trange and the ray trange is nonempty
         t_maximum_of_lower_bounds <= tMaxX.min(tMaxY).min(tMaxZ) &&
             ray.t_range.start <= t_maximum_of_lower_bounds &&
             t_maximum_of_lower_bounds <= ray.t_range.end
@@ -64,29 +66,26 @@ fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
 }
 
 #[derive(Debug)]
-pub enum BVHAccelerator<T: HasAABoundingBox> {
-    Node{first: Box<BVHAccelerator<T>>, second:Box<BVHAccelerator<T>>, wrapper:AABoundingBox},
-    Leaf(T),
+pub enum BVHAccelerator {
+    Node{first: Box<BVHAccelerator>, second:Box<BVHAccelerator>, wrapper:AABoundingBox},
+    Leaf{start: usize, end: usize},
     Nothing
 }
 
-impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
-    pub fn new(objects: &[T]) -> BVHAccelerator<T> {
-        BVHAccelerator::build_tree(&mut objects.to_vec())
-    }
-
-    pub fn new_into(objects: Box<[T]>) -> BVHAccelerator<T> {
-        BVHAccelerator::build_tree(&mut objects.into_vec())
+impl BVHAccelerator {
+    pub fn new<T: HasAABoundingBox>(objects: &mut [T]) -> BVHAccelerator {
+        BVHAccelerator::build_tree(objects, 0)
     }
 
     ///This will mutate objects, so pass in a clone if you don't
     ///want that to happen
-    fn build_tree(objects: &mut [T]) -> BVHAccelerator<T> {
+    /// start_index is what index objects[0] is in the largest enclosing objects array
+    fn build_tree<T: HasAABoundingBox>(objects: &mut [T], start_index: usize) -> BVHAccelerator {
 
         if objects.len() == 0 {
             return BVHAccelerator::Nothing
         } else if objects.len() == 1 {
-            return BVHAccelerator::Leaf(objects[0].clone());
+            return BVHAccelerator::Leaf{start: start_index, end: start_index + 1};
         }
 
         //find widest axis
@@ -123,55 +122,56 @@ impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
                 }
             })
         };
+
         let m = objects.len() / 2;
         let (left_objects, right_objects) = objects.split_at_mut(m);
         BVHAccelerator::Node {
-            first: Box::new(BVHAccelerator::build_tree(left_objects)),
-            second: Box::new(BVHAccelerator::build_tree(right_objects)),
+            first: Box::new(BVHAccelerator::build_tree(left_objects, start_index)),
+            second: Box::new(BVHAccelerator::build_tree(right_objects, start_index + m)),
             wrapper: objects_bbox
         }
     }
 }
 
-impl<T: HasAABoundingBox + Intersectable> BVHAccelerator<T> {
+impl BVHAccelerator {
 
-    pub fn intersect_opt(
-        &self, ray: &RayUnit,
-        inverse_direction: &Vec3,
-        obstruction_only: bool
-    ) -> IntersectionRecord {
+    /// Intersect with bounded boxes. returns true if there is an intersection, and
+    /// appends intersection_indices with indices of intersected boxes
+    fn intersect_box_intern(
+        &self, ray: &RayUnit, inverse_direction: &Vec3,
+        obstruction_only: bool, intersection_indices: &mut Vec<usize>
+    ) -> bool {
         use self::BVHAccelerator::{Node, Leaf, Nothing};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
-                    let first_intersection = first.intersect_opt(&ray, inverse_direction, obstruction_only);
-                    if obstruction_only && first_intersection.t.is_finite() {
-                        return first_intersection;
+                    let first_intersected =
+                        first.intersect_box_intern(&ray, inverse_direction, obstruction_only, intersection_indices);
+                    if obstruction_only && first_intersected {
+                        return true;
                     }
-
-                    let second_intersection = second.intersect_opt(&ray, inverse_direction, obstruction_only);
-
-                    if first_intersection.t < second_intersection.t {
-                        first_intersection
-                    } else {
-                        second_intersection
-                    }
+                    let second_intersected =
+                        second.intersect_box_intern(&ray, inverse_direction, obstruction_only, intersection_indices);
+                    first_intersected || second_intersected
                 } else {
-                    return IntersectionRecord::no_intersection()
+                    false
                 }
             },
-            &Leaf(ref elem) => elem.intersect(ray),
-            &Nothing => IntersectionRecord::no_intersection()
+            &Leaf{start, end} => {
+                for i in start..end {
+                    intersection_indices.push(i)
+                }
+                true
+            }
+            &Nothing => false
         }
     }
-}
 
-impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
-
-    fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
+    pub fn intersect_boxes(&self, ray: &RayUnit, obstruction_only: bool) -> Vec<usize> {
+        let mut indices = Vec::<usize>::new();
         let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
-        self.intersect_opt(ray, &inverse_direction, obstruction_only)
+        self.intersect_box_intern(ray, &inverse_direction, obstruction_only, &mut indices);
+        indices
     }
-
 }
 

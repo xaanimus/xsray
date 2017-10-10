@@ -221,28 +221,40 @@ pub struct Scene {
     pub shaders: HashMap<String, Rc<Shader>>, //delet this
     //pub meshes: Vec<MeshObject>, //refactor code to maybe include ref to object intersected with
     pub lights: Vec<Light>,
-    pub intersection_accel: BVHAccelerator<BVHTriangleWrapper>,
+    pub intersection_accel: BVHAccelerator,
+    pub triangle_wrappers: Vec<BVHTriangleWrapper>
 }
 
 impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {
-        let triangle_wrappers = builder.meshes.into_iter()
+        let mut triangle_wrappers: Vec<BVHTriangleWrapper> = builder.meshes.into_iter()
             .fold(vec![], |acc, mesh| {
                 mesh.triangles.into_iter()
                     .map(|triangle: Triangle| BVHTriangleWrapper::new(triangle))
                     .collect()
             });
+
         Scene {
             background_color: builder.background_color,
             camera: builder.camera,
             shaders: builder.shaders,
             lights: builder.lights,
-            intersection_accel: BVHAccelerator::new_into(triangle_wrappers.into_boxed_slice())
+            intersection_accel: BVHAccelerator::new(&mut triangle_wrappers),
+            triangle_wrappers: triangle_wrappers
         }
     }
 
     pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
-        self.intersection_accel.intersect(ray)
+        let indices = self.intersection_accel.intersect_boxes(ray, false);
+        let mut max_intersection = IntersectionRecord::no_intersection();
+        for i in indices {
+            let obj = &self.triangle_wrappers[i];
+            let intersection = obj.intersect(ray);
+            if intersection.t < max_intersection.t {
+                max_intersection = intersection;
+            }
+        }
+        max_intersection
     }
 
     ///detects an intersection between origin and destination. Not necessarily
@@ -257,6 +269,16 @@ impl Scene {
             ray.t_range.end = (destination - origin).magnitude();
             ray
         };
-        self.intersection_accel.intersect_obstruct(&ray, true)
+
+        let indices = self.intersection_accel.intersect_boxes(&ray, true);
+        for i in indices {
+            let obj = &self.triangle_wrappers[i];
+            let intersection = obj.intersect(&ray);
+            if intersection.t.is_finite() {
+                return intersection
+            }
+        }
+
+        IntersectionRecord::no_intersection()
     }
 }
