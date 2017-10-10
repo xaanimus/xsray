@@ -247,6 +247,7 @@ impl Scene {
 
     ///detects an intersection between origin and destination. Not necessarily
     ///the first intersection
+    ///TODO this logic doesn't belong here
     pub fn intersect_for_obstruction(
         &self, origin: Vec3, destination: Vec3
     ) -> IntersectionRecord {

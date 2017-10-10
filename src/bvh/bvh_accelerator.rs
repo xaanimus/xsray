@@ -47,7 +47,10 @@ pub trait HasAABoundingBox {
         let tMaxY = tvecLowerBound.y.max(tvecUpperBound.y);
         let tMaxZ = tvecLowerBound.z.max(tvecUpperBound.z);
 
-        tMinX.max(tMinY).max(tMinZ) <= tMaxX.min(tMaxY).min(tMaxZ)
+        let t_maximum_of_lower_bounds = tMinX.max(tMinY).max(tMinZ);
+        t_maximum_of_lower_bounds <= tMaxX.min(tMaxY).min(tMaxZ) &&
+            ray.t_range.start <= t_maximum_of_lower_bounds &&
+            t_maximum_of_lower_bounds <= ray.t_range.end
     }
 }
 
