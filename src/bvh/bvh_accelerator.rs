@@ -34,7 +34,6 @@ pub trait HasAABoundingBox {
         (bb.lower + bb.upper) / 2.0
     }
 
-    //consider precomputing inverse of ray direction
     fn intersects_with_bounding_box(&self, ray: &RayUnit, inverse_direction: &Vec3) -> bool {
         let bb = self.aa_bounding_box();
         let tvecLowerBound = (bb.lower - ray.position).mul_element_wise(*inverse_direction);
@@ -83,7 +82,10 @@ impl<T: HasAABoundingBox + Intersectable + Clone> BVHAccelerator<T> {
     ///This will mutate objects, so pass in a clone if you don't
     ///want that to happen
     fn build_tree(objects: &mut [T]) -> BVHAccelerator<T> {
-        if objects.len() == 1 {
+
+        if objects.len() == 0 {
+            return BVHAccelerator::Nothing
+        } else if objects.len() == 1 {
             return BVHAccelerator::Leaf(objects[0].clone());
         }
 
@@ -164,7 +166,6 @@ impl<T: HasAABoundingBox + Intersectable> BVHAccelerator<T> {
     }
 }
 
-//TODO take into account ray range
 impl<T: HasAABoundingBox + Intersectable> Intersectable for BVHAccelerator<T> {
 
     fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
