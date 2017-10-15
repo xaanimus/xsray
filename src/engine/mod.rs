@@ -2,6 +2,7 @@
 use super::utilities::math;
 use super::utilities::color;
 
+mod intersectable;
 mod bvh_accelerator;
 pub mod camera;
 

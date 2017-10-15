@@ -1,5 +1,5 @@
 use super::math::*;
-use super::scene::{Intersectable, IntersectionRecord};
+use super::intersectable::{IntersectionRecord, Intersectable};
 use super::shader::Shader;
 use std::cmp::Ordering;
 use std::rc::Rc;

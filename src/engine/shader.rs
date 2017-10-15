@@ -1,5 +1,5 @@
-
-use super::scene::{Scene, IntersectionRecord};
+use super::intersectable::IntersectionRecord;
+use super::scene::{Scene};
 use super::math::*;
 use super::color::*;
 use std::fmt::{Debug, Formatter};
