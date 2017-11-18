@@ -11,6 +11,7 @@ pub struct AABoundingBox {
     pub upper: Vec3
 }
 
+
 impl AABoundingBox {
     fn new() -> AABoundingBox {
         AABoundingBox {
@@ -48,8 +49,6 @@ pub trait HasAABoundingBox {
         let tMaxZ = tvecLowerBound.z.max(tvecUpperBound.z);
 
         let t_maximum_of_lower_bounds = tMinX.max(tMinY).max(tMinZ);
-        //TODO BUG
-        //TODO update this to check that the intersection of the box trange and the ray trange is nonempty
         t_maximum_of_lower_bounds <= tMaxX.min(tMaxY).min(tMaxZ) &&
             ray.t_range.start <= t_maximum_of_lower_bounds &&
             t_maximum_of_lower_bounds <= ray.t_range.end
