@@ -1,3 +1,5 @@
+//TODO Implement Surface Area Heuristic
+
 use super::math::*;
 use super::intersectable::{IntersectionRecord, Intersectable};
 use super::shader::Shader;
@@ -84,7 +86,7 @@ impl BVHAccelerator {
 
         if objects.len() == 0 {
             return BVHAccelerator::Nothing
-        } else if objects.len() == 1 {
+        } else if objects.len() <= 160 {
             return BVHAccelerator::Leaf{start: start_index, end: start_index + 1};
         }
 
