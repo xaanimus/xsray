@@ -12,5 +12,7 @@ pub mod scene_builder;
 pub mod shader;
 pub mod renderer;
 
+mod integrator;
+
 #[cfg(test)]
 mod test_engine;

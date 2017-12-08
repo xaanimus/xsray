@@ -8,6 +8,11 @@ use std::f32;
 
 pub trait Shader {
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3;
+    /// Shades without incoming light term
+    /// returns brdf
+    fn brdf(&self, record: &IntersectionRecord) -> Color3 {
+        Color3::zero()
+    }
 }
 
 impl Debug for Shader {
@@ -40,5 +45,9 @@ impl Shader for DiffuseShader {
                     self.color * light.intensity / light_vec.magnitude2() + acc
             }
         })
+    }
+
+    fn brdf(&self, record: &IntersectionRecord) -> Color3 {
+        self.color
     }
 }

@@ -6,7 +6,7 @@ use super::camera::*;
 use super::intersectable::*;
 use super::scene_builder::SceneBuilder;
 use super::shader::{Shader};
-use super::bvh_accelerator::{BVHAccelerator, HasAABoundingBox, AABoundingBox};
+use super::bvh_accelerator::{BVHAccelerator};
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;

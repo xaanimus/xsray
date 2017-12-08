@@ -145,5 +145,9 @@ impl IntersectionRecord {
             t: f32::INFINITY
         }
     }
+
+    pub fn intersected(&self) -> bool {
+        self.t.is_finite()
+    }
 }
 

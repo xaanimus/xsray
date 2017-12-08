@@ -8,7 +8,7 @@ pub type Matrix3 = cgmath::Matrix3<f32>;
 pub use self::cgmath::{Zero, SquareMatrix, InnerSpace, ElementWise};
 
 ///A Vec3 that's always normalized
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnitVec3 {
     value: Vec3
 }
@@ -56,6 +56,7 @@ impl HasUnit<UnitVec3> for Vec3 {
     }
 }
 
+#[derive(Clone)]
 pub struct RayBase<T> {
     pub position: Vec3,
     pub direction: T,
@@ -76,6 +77,19 @@ impl<T> RayBase<T> {
     pub fn new_shadow(position: Vec3, direction: T) -> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
         ray.t_range.start = 100.0 * f32::EPSILON;
+        ray
+    }
+}
+
+impl RayBase<UnitVec3> {
+    pub fn new_shadow_target(position: Vec3, target: Vec3) -> RayBase<UnitVec3> {
+        let mut ray = RayBase::<UnitVec3>::new(
+            position,
+            (target - position).unit()
+        );
+        let distance = (target - position).magnitude();
+        ray.t_range.start = 100.0 * f32::EPSILON;
+        ray.t_range.end = distance;
         ray
     }
 }

@@ -3,7 +3,7 @@ extern crate image;
 use std::cmp::max;
 use self::image::{RgbImage};
 use super::scene::*;
-use super::scene_builder::*;
+use super::integrator::Integrator;
 
 //clean
 use super::color::*;
@@ -63,19 +63,24 @@ impl Config {
 
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
         let ray = self.scene.camera.shoot_ray(u,v);
-        //try to intersect with object.
-        let intersection = self.scene.intersect(&ray);
-        if intersection.t.is_finite() && intersection.shader.is_some() {
-            intersection.shader.as_ref().unwrap().shade(&intersection, &self.scene)
-        } else {
-            self.scene.background_color
-        }
+        let integrator = Integrator {max_bounces: 8};
+        let color = integrator.render(ray, &self.scene);
+        color
+
+//        //try to intersect with object.
+//        let intersection = self.scene.intersect(&ray);
+//        if intersection.t.is_finite() && intersection.shader.is_some() {
+//            intersection.shader.as_ref().unwrap().shade(&intersection, &self.scene)
+//        } else {
+//            self.scene.background_color
+//        }
     }
 
     pub fn process_color(&self, color: Color3) -> Color3 {
         color * self.settings.exposure
     }
 }
+
 
 
 

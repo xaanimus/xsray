@@ -8,8 +8,10 @@ use std::io::Read;
 
 fn main() {
     //load scene file
-    let arguments : Vec<String> = env::args().collect();
-    let filename = &arguments[1];
+    let mut arguments = env::args();
+    arguments.next();
+    let filename = arguments.next().expect("no filename provided");
+
     let mut file = File::open(filename).unwrap();
     let mut s = String::new();
     file.read_to_string(&mut s).unwrap();

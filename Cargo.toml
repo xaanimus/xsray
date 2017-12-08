@@ -8,6 +8,7 @@ image = "*"
 cgmath = "0.12.0"
 json = "*"
 obj-rs = "0.4.17"
+rand = "0.3"
 
 [profile.release]
 debug = true
