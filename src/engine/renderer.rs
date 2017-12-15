@@ -3,10 +3,11 @@ extern crate image;
 use std::cmp::max;
 use self::image::{RgbImage};
 use super::scene::*;
-use super::integrator::Integrator;
+use super::integrator::*;
 
 //clean
 use super::color::*;
+use super::math::*;
 
 fn i32_to_u32(x: i32) -> u32 {
     max(x, 0) as u32
@@ -62,18 +63,12 @@ impl Config {
     }
 
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
-        let ray = self.scene.camera.shoot_ray(u,v);
-        let integrator = Integrator {max_bounces: 8};
-        let color = integrator.render(ray, &self.scene);
-        color
-
-//        //try to intersect with object.
-//        let intersection = self.scene.intersect(&ray);
-//        if intersection.t.is_finite() && intersection.shader.is_some() {
-//            intersection.shader.as_ref().unwrap().shade(&intersection, &self.scene)
-//        } else {
-//            self.scene.background_color
-//        }
+        //let ray = self.scene.camera.shoot_ray(u,v);
+        let integrator = PathTracerIntegrator {
+            max_bounces: 2,
+            number_samples: 30 
+        };
+        integrator.shade_camera_point(&self.scene, u, v)
     }
 
     pub fn process_color(&self, color: Color3) -> Color3 {

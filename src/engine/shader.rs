@@ -2,17 +2,28 @@ use super::intersectable::IntersectionRecord;
 use super::scene::{Scene};
 use super::math::*;
 use super::color::*;
+use super::probability::*;
 use std::fmt::{Debug, Formatter};
 use std::fmt;
 use std::f32;
 
+pub fn default_shader() -> DiffuseShader {
+    DiffuseShader {
+        color: Color3::new(1.0, 1.0, 1.0)
+    }
+}
+
 pub trait Shader {
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3;
-    /// Shades without incoming light term
-    /// returns brdf
-    fn brdf(&self, record: &IntersectionRecord) -> Color3 {
-        Color3::zero()
-    }
+    fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3;
+    fn probability_of_sample(&self, normal: &UnitVec3,
+                             incoming_light_direction: &UnitVec3,
+                             outgoing_light_direction: &UnitVec3) -> f32;
+
+    fn brdf_cosine_term(
+        &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
+        incoming_light_direction: &UnitVec3
+    ) -> Color3;
 }
 
 impl Debug for Shader {
@@ -34,6 +45,18 @@ impl DiffuseShader {
 }
 
 impl Shader for DiffuseShader {
+    fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
+        let sample = UniformHemisphereWarper::sample();
+        transform_into(normal, &sample)
+    }
+
+    fn probability_of_sample(&self, normal: &UnitVec3,
+                             incoming_light_direction: &UnitVec3,
+                             outgoing_light_direction: &UnitVec3) -> f32 {
+        let sample = transform_from(normal, incoming_light_direction.vec());
+        UniformHemisphereWarper::pdf(sample.vec())
+    }
+
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
         scene.lights.iter().fold(Color3::new(0.0, 0.0, 0.0), |acc, light| {
             let light_vec = light.position - record.position;
@@ -47,7 +70,13 @@ impl Shader for DiffuseShader {
         })
     }
 
-    fn brdf(&self, record: &IntersectionRecord) -> Color3 {
-        self.color
+    fn brdf_cosine_term(
+        &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
+        incoming_light_direction: &UnitVec3
+    ) -> Color3 {
+        let brdf = self.color;
+        let cosine_term = normal.vec().dot(*incoming_light_direction.vec());
+        brdf * cosine_term
     }
 }
+

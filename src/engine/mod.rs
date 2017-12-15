@@ -13,6 +13,7 @@ pub mod shader;
 pub mod renderer;
 
 mod integrator;
+mod probability;
 
 #[cfg(test)]
 mod test_engine;

@@ -85,9 +85,11 @@ impl Intersectable for Triangle {
         let mut a_mat = Matrix3::from_cols(a_col_1, a_col_2, *a_col_3);
         let det_a = a_mat.determinant();
 
-        if det_a == 0. {
-            return IntersectionRecord::no_intersection()
-        }
+        // Checking that the determinant of A is
+        // nonzero is unnecessary. If the determinant is
+        // 0 (which is rare), the t computed will be NaN,
+        // which will make this function correctly return
+        // no intersection
 
         //compute determinant of A_1
         a_mat.x = b_col;

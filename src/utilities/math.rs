@@ -1,13 +1,20 @@
 extern crate cgmath;
-use std::ops::{Neg, Range};
+pub use std::ops::{Neg, Range};
 use std::f32;
 
+pub type Vec2 = cgmath::Vector2<f32>;
 pub type Vec3 = cgmath::Vector3<f32>;
 pub type Matrix3 = cgmath::Matrix3<f32>;
 
-pub use self::cgmath::{Zero, SquareMatrix, InnerSpace, ElementWise};
+pub use self::cgmath::{Zero, One, Array, SquareMatrix, InnerSpace, ElementWise};
+
+pub fn apprx_eq(a: f32, b: f32, eps: f32) -> bool {
+    let x = (b - a).abs();
+    x < eps
+}
 
 ///A Vec3 that's always normalized
+///TODO implement into Vec3
 #[derive(Debug, Clone)]
 pub struct UnitVec3 {
     value: Vec3
@@ -108,5 +115,3 @@ impl HasElemWiseExtrema for Vec3 {
         Vec3::new(self.x.max(other.x), self.y.max(other.y), self.z.max(other.z))
     }
 }
-
-

@@ -34,23 +34,38 @@ pub trait HasAABoundingBox {
         (bb.lower + bb.upper) / 2.0
     }
 
+    //might not work when ray origin is inside box.
     fn intersects_with_bounding_box(&self, ray: &RayUnit, inverse_direction: &Vec3) -> bool {
         let bb = self.aa_bounding_box();
-        let tvecLowerBound = (bb.lower - ray.position).mul_element_wise(*inverse_direction);
-        let tvecUpperBound = (bb.upper - ray.position).mul_element_wise(*inverse_direction);
+        let tvec_lower_bound = (bb.lower - ray.position).mul_element_wise(*inverse_direction);
+        let tvec_upper_bound = (bb.upper - ray.position).mul_element_wise(*inverse_direction);
 
-        let tMinX = tvecLowerBound.x.min(tvecUpperBound.x);
-        let tMinY = tvecLowerBound.y.min(tvecUpperBound.y);
-        let tMinZ = tvecLowerBound.z.min(tvecUpperBound.z);
-        let tMaxX = tvecLowerBound.x.max(tvecUpperBound.x);
-        let tMaxY = tvecLowerBound.y.max(tvecUpperBound.y);
-        let tMaxZ = tvecLowerBound.z.max(tvecUpperBound.z);
+        //contains minimum t value for x y and z planes
+        let t_min_xyz = tvec_lower_bound.min_elem_wise(&tvec_upper_bound);
+        //contains maximum t value for x y and z planes
+        let t_max_xyz = tvec_lower_bound.max_elem_wise(&tvec_upper_bound);
 
-        let t_maximum_of_lower_bounds = tMinX.max(tMinY).max(tMinZ);
-        t_maximum_of_lower_bounds <= tMaxX.min(tMaxY).min(tMaxZ) &&
-            ray.t_range.start <= t_maximum_of_lower_bounds &&
+        let t_maximum_of_lower_bounds = t_min_xyz.max();
+        let t_minimum_of_upper_bounds = t_max_xyz.min();
+
+        t_maximum_of_lower_bounds <= t_minimum_of_upper_bounds &&
+            //bounds check
+            ray.t_range.start <= t_minimum_of_upper_bounds &&
             t_maximum_of_lower_bounds <= ray.t_range.end
     }
+}
+
+#[test]
+fn test_bb() {
+    let bb = AABoundingBox {
+        lower: Vec3::new(0., 0., 0.),
+        upper: Vec3::new(1., 1., 1.)
+    };
+    let ray = RayUnit::new(Vec3::new(0.5, 0.5, 0.5),
+                           Vec3::new(1.0, 0.0, 0.0).unit());
+    let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
+    let intersected = bb.intersects_with_bounding_box(&ray, &inverse_direction);
+    assert!(intersected);
 }
 
 fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
