@@ -55,7 +55,6 @@ pub struct PathTracerIntegrator {
     pub number_samples: u32
 }
 
-//TODO implement shading path for perfectly smooth objects.
 fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
     if path.intersections.is_empty() { return Color3::zero() }
 
@@ -70,16 +69,9 @@ fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
 
         //branch that samples from the light
         if let &Some(ref light) = light_sample {
-            let mut ray_light = RayBase::new_shadow(
+            let light_intersection = scene.intersect_for_obstruction(
                 intersection.position,
-                (light.position - intersection.position).unit()
-            );
-            ray_light.t_range.end = (intersection.position - light.position).magnitude();
-            let light_intersection = scene.intersect(&ray_light);
-            //scene.intersect_for_obstruction might be broken
-            //let light_intersection = scene.intersect_for_obstruction(
-            //    intersection.position,
-            //    light.position);
+                light.position);
             if !light_intersection.intersected() {
                 let light_vector = light.position - intersection.position;
                 let light_distance = light_vector.magnitude();
@@ -120,7 +112,8 @@ fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
 
     //consider changing to max_bounces
     //sum_of_samples / path.intersections.len() as f32
-    sum_of_samples / max_bounces as f32
+    let num_ray_samples = max_bounces as f32 + 1.;
+    sum_of_samples / num_ray_samples as f32
 }
 
 fn shade_path_interconnected(path: &Path) {
@@ -157,8 +150,7 @@ impl PathTracerIntegrator {
 
             let new_direction = shader.sample_bounce(&record.normal.unit(),
                                                      &current_ray.direction.neg());
-            //TODO rename new_shadow to new_eps_offset
-            current_ray = RayBase::new_shadow(record.position, new_direction);
+            current_ray = RayBase::new_epsilon_offset(record.position, new_direction);
         }
 
         //if there are intersections, connect path to a light
@@ -177,7 +169,6 @@ impl Integrator for PathTracerIntegrator {
         color
     }
 
-    //TODO make uv coordinates
     fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32) -> Color3 {
         let ray = scene.camera.shoot_ray(u,v);
         (0..self.number_samples)

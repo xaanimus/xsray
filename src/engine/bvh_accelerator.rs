@@ -1,5 +1,3 @@
-//TODO Implement Surface Area Heuristic
-
 use super::math::*;
 use std::cmp::Ordering;
 
@@ -149,6 +147,8 @@ impl BVHAccelerator {
 impl BVHAccelerator {
     /// Intersect with bounded boxes. returns true if there is an intersection, and
     /// appends intersection_indices with indices of intersected boxes
+    /// If obstruction_only = true, this will return early if it intersects any
+    /// box, not triangle.
     fn intersect_box_intern(
         &self, ray: &RayUnit, inverse_direction: &Vec3,
         obstruction_only: bool, intersection_indices: &mut Vec<usize>

@@ -121,14 +121,14 @@ impl Scene {
     pub fn intersect_for_obstruction(
         &self, origin: Vec3, destination: Vec3
     ) -> IntersectionRecord {
-        //TODO optimize for shadow detection
+        //TODO optimize for obstruction detection
         let ray = {
-            let mut ray = RayUnit::new_shadow(origin, (destination - origin).unit());
+            let mut ray = RayBase::new_epsilon_offset(origin, (destination - origin).unit());
             ray.t_range.end = (destination - origin).magnitude();
             ray
         };
 
-        let indices = self.intersection_accel.intersect_boxes(&ray, true);
+        let indices = self.intersection_accel.intersect_boxes(&ray, false);
         for i in indices {
             let obj = &self.triangle_wrappers[i];
             let intersection = obj.intersect(&ray);

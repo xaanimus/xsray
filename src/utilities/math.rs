@@ -81,22 +81,9 @@ impl<T> RayBase<T> {
         }
     }
 
-    pub fn new_shadow(position: Vec3, direction: T) -> RayBase<T> {
+    pub fn new_epsilon_offset(position: Vec3, direction: T) -> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
         ray.t_range.start = 100.0 * f32::EPSILON;
-        ray
-    }
-}
-
-impl RayBase<UnitVec3> {
-    pub fn new_shadow_target(position: Vec3, target: Vec3) -> RayBase<UnitVec3> {
-        let mut ray = RayBase::<UnitVec3>::new(
-            position,
-            (target - position).unit()
-        );
-        let distance = (target - position).magnitude();
-        ray.t_range.start = 100.0 * f32::EPSILON;
-        ray.t_range.end = distance;
         ray
     }
 }

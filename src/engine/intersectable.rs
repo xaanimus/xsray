@@ -116,7 +116,6 @@ impl Intersectable for Triangle {
             {
                 let alpha = 1.0 - beta - gamma;
                 //interpolate
-                //TODO on construct check normals normalized
                 IntersectionRecord {
                     position: ray.position + t * ray.direction.vec(),
                     normal: self.normals[0] * alpha + self.normals[1] * beta + self.normals[2] * gamma,
