@@ -73,9 +73,9 @@ impl Camera {
     /// u and v should both be in the range [0,1] if the ray should be inside the camera's image
     pub fn shoot_ray(&self, u: f32, v: f32) -> RayUnit {
 
-        let direction = self.direction.vec() * self.plane_distance
-            + ((u - 0.5) * self.basis.right.vec() * self.plane_height)
-            + ((v - 0.5) * self.basis.up.vec() * self.plane_width);
+        let direction = self.direction.value() * self.plane_distance
+            + ((u - 0.5) * self.basis.right.value() * self.plane_height)
+            + ((v - 0.5) * self.basis.up.value() * self.plane_width);
         RayUnit::new(self.position, direction.unit())
     }
 }

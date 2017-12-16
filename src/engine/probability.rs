@@ -64,6 +64,7 @@ impl Warper for UniformHemisphereWarper {
     }
 }
 
+
 ///Warper for a unit hemisphere
 enum UniformSphereWarper {}
 impl Warper for UniformSphereWarper {
@@ -85,22 +86,44 @@ impl Warper for UniformSphereWarper {
     }
 }
 
+pub enum CosineHemisphereWarper {}
+impl Warper for CosineHemisphereWarper {
+    type Output = Vec3;
+
+    fn warp(from: &Vec2) -> Self::Output {
+        let height = from.x;
+        let theta = 2.0 * PI * from.y;
+        let r = (1.0 - height.powi(2)).sqrt();
+        Vec3 {
+            x: r * theta.cos(),
+            y: height,
+            z: - r * theta.sin()
+        }
+    }
+
+    fn pdf(sample: &Self::Output) -> f32 {
+        let normal = Vec3::new(0., 1., 0.);
+        sample.dot(normal).max(0.0) / PI
+    }
+}
+
+
 fn get_rotation_matrix_to(normal: &UnitVec3) -> Matrix3 {
     let axis_0 = { //axis that's perpendicular to normal
         let up = Vec3::new(0.0, 1.0, 0.0);
         let x_dir = Vec3::new(1.0, 0.0, 0.0);
-        let dot = up.dot(*normal.vec());
+        let dot = up.dot(*normal.value());
         if dot.abs() < 0.95 {
-            up.cross(*normal.vec()).normalize()
+            up.cross(*normal.value()).normalize()
         } else {
-            x_dir.cross(*normal.vec()).normalize()
+            x_dir.cross(*normal.value()).normalize()
         }
     };
-    let axis_1 = axis_0.cross(*normal.vec());
+    let axis_1 = axis_0.cross(*normal.value());
 
     Matrix3 {
         x: axis_0,
-        y: *normal.vec(),
+        y: *normal.value(),
         z: axis_1
     }
 }

@@ -116,6 +116,7 @@ fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
     sum_of_samples / num_ray_samples as f32
 }
 
+//TODO for bdpt path shading
 fn shade_path_interconnected(path: &Path) {
 }
 

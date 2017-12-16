@@ -61,7 +61,7 @@ fn test_bb() {
     };
     let ray = RayUnit::new(Vec3::new(0.5, 0.5, 0.5),
                            Vec3::new(1.0, 0.0, 0.0).unit());
-    let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
+    let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
     let intersected = bb.intersects_with_bounding_box(&ray, &inverse_direction);
     assert!(intersected);
 }
@@ -185,7 +185,7 @@ impl BVHAccelerator {
     /// the objects in a way that benefits from cache locality
     pub fn intersect_boxes(&self, ray: &RayUnit, obstruction_only: bool) -> Vec<usize> {
         let mut indices = Vec::<usize>::new();
-        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.vec());
+        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
         self.intersect_box_intern(ray, &inverse_direction, obstruction_only, &mut indices);
         indices
     }

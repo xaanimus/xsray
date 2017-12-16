@@ -78,7 +78,7 @@ impl Intersectable for Triangle {
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
         let a_col_1 = self.positions[0] - self.positions[1]; //a - b
         let a_col_2 = self.positions[0] - self.positions[2]; //a - c
-        let a_col_3 = ray.direction.vec(); //d
+        let a_col_3 = ray.direction.value(); //d
         let b_col = self.positions[0] - ray.position;
 
         //compute determinant of A
@@ -117,7 +117,7 @@ impl Intersectable for Triangle {
                 let alpha = 1.0 - beta - gamma;
                 //interpolate
                 IntersectionRecord {
-                    position: ray.position + t * ray.direction.vec(),
+                    position: ray.position + t * ray.direction.value(),
                     normal: self.normals[0] * alpha + self.normals[1] * beta + self.normals[2] * gamma,
                     t: t,
                     shader: Some(self.shader.clone())

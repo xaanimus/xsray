@@ -87,6 +87,7 @@ impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {
         let mut triangle_wrappers: Vec<BVHTriangleWrapper> = builder.meshes.into_iter()
             .fold(vec![], |acc, mesh| {
+                //TODO multiple objects
                 mesh.triangles.into_iter()
                     .map(|triangle: Triangle| BVHTriangleWrapper::new(triangle))
                     .collect()

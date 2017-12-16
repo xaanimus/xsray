@@ -46,15 +46,15 @@ impl DiffuseShader {
 
 impl Shader for DiffuseShader {
     fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
-        let sample = UniformHemisphereWarper::sample();
+        let sample = CosineHemisphereWarper::sample();
         transform_into(normal, &sample)
     }
 
     fn probability_of_sample(&self, normal: &UnitVec3,
                              incoming_light_direction: &UnitVec3,
                              outgoing_light_direction: &UnitVec3) -> f32 {
-        let sample = transform_from(normal, incoming_light_direction.vec());
-        UniformHemisphereWarper::pdf(sample.vec())
+        let sample = transform_from(normal, incoming_light_direction.value());
+        CosineHemisphereWarper::pdf(sample.value())
     }
 
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
@@ -75,7 +75,7 @@ impl Shader for DiffuseShader {
         incoming_light_direction: &UnitVec3
     ) -> Color3 {
         let brdf = self.color;
-        let cosine_term = normal.vec().dot(*incoming_light_direction.vec());
+        let cosine_term = normal.value().dot(*incoming_light_direction.value());
         brdf * cosine_term
     }
 }

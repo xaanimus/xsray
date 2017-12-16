@@ -13,31 +13,37 @@ pub fn apprx_eq(a: f32, b: f32, eps: f32) -> bool {
     x < eps
 }
 
+impl From<UnitVec3> for Vec3 {
+    fn from(uvec: UnitVec3) -> Self {
+        uvec._value
+    }
+}
+
 ///A Vec3 that's always normalized
 ///TODO implement into Vec3
 #[derive(Debug, Clone)]
 pub struct UnitVec3 {
-    value: Vec3
+    _value: Vec3
 }
 
 impl UnitVec3 {
     pub fn new(value: &Vec3) -> UnitVec3 {
         UnitVec3 {
-            value: value.normalize()
+            _value: value.normalize()
         }
     }
 
-    pub fn vec(&self) -> &Vec3 {
-        &self.value
+    pub fn value(&self) -> &Vec3 {
+        &self._value
     }
 
     pub fn cross(&self, other: UnitVec3) -> UnitVec3 {
-        self.value.cross(other.value).unit()
+        self._value.cross(other._value).unit()
     }
 
     pub fn clone(&self) -> UnitVec3 {
         UnitVec3 {
-            value: self.value.clone()
+            _value: self._value.clone()
         }
     }
 }
@@ -46,7 +52,7 @@ impl Neg for UnitVec3 {
     type Output = UnitVec3;
     fn neg(self) -> UnitVec3 {
         UnitVec3 {
-            value: -self.value
+            _value: -self._value
         }
     }
 }
