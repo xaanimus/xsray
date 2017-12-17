@@ -102,6 +102,7 @@ fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
     }
     
     //finally, multiply by light sample
+    //assuming this is a point light
     let light_distance = (light_sample.position - previous_position).magnitude();
     let light_intensity = light_sample.intensity;
 
@@ -177,7 +178,7 @@ fn shade_path_interconnected(path: &Path) {
 ///in Path.intersections. It is not guaranteed that a ray from last intersection
 ///to the light sample is unobstructed
 ///Max bounces is >= 0
-fn compute_path(ray: &RayUnit, scene: &Scene, max_bounces: u32) -> Path {
+fn trace_path(ray: &RayUnit, scene: &Scene, max_bounces: u32) -> Path {
     let mut path = Path {
         start_position: ray.position,
         intersections: Vec::new(),
@@ -217,7 +218,7 @@ fn compute_path(ray: &RayUnit, scene: &Scene, max_bounces: u32) -> Path {
 impl Integrator for PathTracerIntegrator {
     fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3 {
         let max_bounces = rand::random::<u32>() % self.max_bounces;
-        let path = compute_path(ray, scene, max_bounces);
+        let path = trace_path(ray, scene, max_bounces);
         let color = shade_path(&path, scene, max_bounces);
         color
     }

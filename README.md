@@ -2,6 +2,8 @@
 a cool rust ray tracer
 
 # TODO
+- [ ] Object transform
+- [ ] Anti aliasing
 - [ ] Support several objects
 - [ ] Handle Objs more robustly (accept non triangulated objs, handle normals better)
 - [ ] Faster triangle intersection

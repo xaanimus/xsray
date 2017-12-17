@@ -21,7 +21,11 @@
         },
         "meshes" : [
             {
-                "src" : "assets/cornell_box.obj",
+                "src" : "assets/cornell_box/empty_box.obj",
+                "shader" : "white_diffuse"
+            },
+            {
+                "src" : "assets/cornell_box/rect_prism_1.obj",
                 "shader" : "white_diffuse"
             }
         ],

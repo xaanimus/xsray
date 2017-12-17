@@ -86,11 +86,12 @@ pub struct Scene {
 impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {
         let mut triangle_wrappers: Vec<BVHTriangleWrapper> = builder.meshes.into_iter()
-            .fold(vec![], |acc, mesh| {
-                //TODO multiple objects
-                mesh.triangles.into_iter()
+            .fold(vec![], |mut acc, mesh| {
+                let mut new_triangles: Vec<BVHTriangleWrapper> = mesh.triangles.into_iter()
                     .map(|triangle: Triangle| BVHTriangleWrapper::new(triangle))
-                    .collect()
+                    .collect();
+                acc.append(&mut new_triangles);
+                acc
             });
 
         Scene {
