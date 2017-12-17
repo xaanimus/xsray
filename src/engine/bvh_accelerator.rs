@@ -18,23 +18,27 @@ impl AABoundingBox {
 }
 
 impl HasAABoundingBox for AABoundingBox {
-    fn aa_bounding_box(&self) -> &AABoundingBox {
+    fn aa_bounding_box_ref(&self) -> &AABoundingBox {
         &self
     }
 }
 
+pub trait MakesAABoundingBox {
+    fn make_aa_bounding_box(&self) -> AABoundingBox;
+}
+
 ///HasAABB for objects that have axis-aligned bounding boxes
 pub trait HasAABoundingBox {
-    fn aa_bounding_box(&self) -> &AABoundingBox;
+    fn aa_bounding_box_ref(&self) -> &AABoundingBox;
 
     fn get_bounding_box_center(&self) -> Vec3 {
-        let bb = self.aa_bounding_box();
+        let bb = self.aa_bounding_box_ref();
         (bb.lower + bb.upper) / 2.0
     }
 
     //might not work when ray origin is inside box.
     fn intersects_with_bounding_box(&self, ray: &RayUnit, inverse_direction: &Vec3) -> bool {
-        let bb = self.aa_bounding_box();
+        let bb = self.aa_bounding_box_ref();
         let tvec_lower_bound = (bb.lower - ray.position).mul_element_wise(*inverse_direction);
         let tvec_upper_bound = (bb.upper - ray.position).mul_element_wise(*inverse_direction);
 
@@ -69,7 +73,7 @@ fn test_bb() {
 fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
     let mut full_bounding_box = AABoundingBox::new();
     for ref elem in elems {
-        let bbox: &AABoundingBox = (*elem).aa_bounding_box();
+        let bbox: &AABoundingBox = (*elem).aa_bounding_box_ref();
         full_bounding_box.lower = full_bounding_box.lower.min_elem_wise(&bbox.lower);
         full_bounding_box.upper = full_bounding_box.upper.max_elem_wise(&bbox.upper);
     }

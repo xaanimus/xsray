@@ -7,11 +7,11 @@
     "scene" : {
         "background_color" : [0.0, 0.0, 0.1],
         "camera" : {
-            "position" : [10.0, 2.5, 0.0],
+            "position" : [7.0, 2.5, 0.0],
             "direction" : [-1.0, 0.0, 0.0],
             "up" : [0.0, 1.0, 0.0],
             "plane_distance" : 8.0,
-            "plane_width" : 5.0
+            "plane_width" : 15.0
         },
         "shaders" : {
             "white_diffuse" : {

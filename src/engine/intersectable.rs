@@ -14,41 +14,40 @@ pub trait Intersectable {
     fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord;
 }
 
-#[derive(Debug, Clone)]
-pub struct BVHTriangleWrapper {
-    pub triangle: Triangle,
-    pub bounding_box: AABoundingBox,
-}
-
-impl BVHTriangleWrapper {
-    pub fn new(triangle: Triangle) -> BVHTriangleWrapper {
-        let bounding_box =
-            AABoundingBox {
-                lower: triangle.positions[0]
-                    .min_elem_wise(&triangle.positions[1])
-                    .min_elem_wise(&triangle.positions[2]),
-                upper: triangle.positions[0]
-                    .max_elem_wise(&triangle.positions[1])
-                    .max_elem_wise(&triangle.positions[2])
-            };
-        BVHTriangleWrapper {
-            triangle: triangle,
-            bounding_box: bounding_box
-        }
-    }
-}
-
-impl Intersectable for BVHTriangleWrapper {
-    fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
-        self.triangle.intersect(ray)
-    }
-}
-
-impl HasAABoundingBox for BVHTriangleWrapper {
-    fn aa_bounding_box(&self) -> &AABoundingBox {
-        &self.bounding_box
-    }
-}
+//#[derive(Debug, Clone)]
+//pub struct BVHTriangleWrapper {
+//    pub triangle: Triangle,
+//    pub bounding_box: AABoundingBox,
+//}
+//
+//impl BVHTriangleWrapper {
+//    pub fn new(triangle: Triangle) -> BVHTriangleWrapper {
+//        let bounding_box =
+//            AABoundingBox {
+//                lower: triangle.positions[0]
+//                    .min_elem_wise(&triangle.positions[1])
+//                    .min_elem_wise(&triangle.positions[2]),
+//                upper: triangle.positions[0]
+//                    .max_elem_wise(&triangle.positions[1])
+//                    .max_elem_wise(&triangle.positions[2])
+//            };
+//        BVHTriangleWrapper {
+//            triangle: triangle,
+//            bounding_box: bounding_box
+//        }
+//    }
+//}
+//impl Intersectable for BVHTriangleWrapper {
+//    fn intersect_obstruct(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
+//        self.triangle.intersect(ray)
+//    }
+//}
+//
+//impl HasAABoundingBox for BVHTriangleWrapper {
+//    fn aa_bounding_box_ref(&self) -> &AABoundingBox {
+//        &self.bounding_box
+//    }
+//}
 
 #[derive(Debug)]
 pub struct Triangle {
@@ -71,15 +70,50 @@ impl Clone for Triangle {
     }
 }
 
-impl Intersectable for Triangle {
+impl MakesAABoundingBox for Triangle {
+    fn make_aa_bounding_box(&self) -> AABoundingBox {
+        AABoundingBox {
+            lower: self.positions[0]
+                .min_elem_wise(&self.positions[1])
+                .min_elem_wise(&self.positions[2]),
+            upper: self.positions[0]
+                .max_elem_wise(&self.positions[1])
+                .max_elem_wise(&self.positions[2])
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct IntersectableTriangle {
+    triangle: Triangle,
+    aa_bounding_box: AABoundingBox
+}
+
+impl IntersectableTriangle {
+    pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
+        IntersectableTriangle {
+            triangle: triangle.clone(),
+            aa_bounding_box: triangle.make_aa_bounding_box()
+        }
+    }
+}
+
+impl HasAABoundingBox for IntersectableTriangle {
+    fn aa_bounding_box_ref(&self) -> &AABoundingBox {
+        &self.aa_bounding_box
+    }
+}
+
+impl Intersectable for IntersectableTriangle {
     fn intersect_obstruct(&self, ray: &RayUnit, _: bool) -> IntersectionRecord {
+        let triangle = &self.triangle;
 
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
-        let a_col_1 = self.positions[0] - self.positions[1]; //a - b
-        let a_col_2 = self.positions[0] - self.positions[2]; //a - c
+        let a_col_1 = triangle.positions[0] - triangle.positions[1]; //a - b
+        let a_col_2 = triangle.positions[0] - triangle.positions[2]; //a - c
         let a_col_3 = ray.direction.value(); //d
-        let b_col = self.positions[0] - ray.position;
+        let b_col = triangle.positions[0] - ray.position;
 
         //compute determinant of A
         let mut a_mat = Matrix3::from_cols(a_col_1, a_col_2, *a_col_3);
@@ -118,9 +152,9 @@ impl Intersectable for Triangle {
                 //interpolate
                 IntersectionRecord {
                     position: ray.position + t * ray.direction.value(),
-                    normal: self.normals[0] * alpha + self.normals[1] * beta + self.normals[2] * gamma,
+                    normal: triangle.normals[0] * alpha + triangle.normals[1] * beta + triangle.normals[2] * gamma,
                     t: t,
-                    shader: Some(self.shader.clone())
+                    shader: Some(triangle.shader.clone())
                 }
             } else {
             IntersectionRecord::no_intersection()

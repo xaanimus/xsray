@@ -6,7 +6,7 @@ use super::camera::*;
 use super::intersectable::*;
 use super::scene_builder::SceneBuilder;
 use super::shader::{Shader};
-use super::bvh_accelerator::{BVHAccelerator};
+use super::bvh_accelerator::*;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
@@ -80,27 +80,24 @@ pub struct Scene {
     //pub meshes: Vec<MeshObject>, //refactor code to maybe include ref to object intersected with
     pub lights: Vec<Light>,
     pub intersection_accel: BVHAccelerator,
-    pub triangle_wrappers: Vec<BVHTriangleWrapper>
+    pub triangles: Vec<IntersectableTriangle>
 }
 
 impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {
-        let mut triangle_wrappers: Vec<BVHTriangleWrapper> = builder.meshes.into_iter()
-            .fold(vec![], |mut acc, mesh| {
-                let mut new_triangles: Vec<BVHTriangleWrapper> = mesh.triangles.into_iter()
-                    .map(|triangle: Triangle| BVHTriangleWrapper::new(triangle))
-                    .collect();
-                acc.append(&mut new_triangles);
-                acc
-            });
+        let mut triangles: Vec<IntersectableTriangle> = builder.meshes.into_iter()
+            .flat_map(|mesh: MeshObject| mesh.triangles.iter()
+                      .map(|triangle| IntersectableTriangle::new_from_triangle(triangle))
+                      .collect::<Vec<IntersectableTriangle>>())
+            .collect();
 
         Scene {
             background_color: builder.background_color,
             camera: builder.camera,
             shaders: builder.shaders,
             lights: builder.lights,
-            intersection_accel: BVHAccelerator::new(&mut triangle_wrappers),
-            triangle_wrappers: triangle_wrappers
+            intersection_accel: BVHAccelerator::new(&mut triangles),
+            triangles: triangles
         }
     }
 
@@ -108,7 +105,7 @@ impl Scene {
         let indices = self.intersection_accel.intersect_boxes(ray, false);
         let mut max_intersection = IntersectionRecord::no_intersection();
         for i in indices {
-            let obj = &self.triangle_wrappers[i];
+            let obj = &self.triangles[i];
             let intersection = obj.intersect(ray);
             if intersection.t < max_intersection.t {
                 max_intersection = intersection;
@@ -132,7 +129,7 @@ impl Scene {
 
         let indices = self.intersection_accel.intersect_boxes(&ray, false);
         for i in indices {
-            let obj = &self.triangle_wrappers[i];
+            let obj = &self.triangles[i];
             let intersection = obj.intersect(&ray);
             if intersection.t.is_finite() {
                 return intersection
