@@ -108,6 +108,7 @@ impl Intersectable for IntersectableTriangle {
     fn intersect_obstruct(&self, ray: &RayUnit, _: bool) -> IntersectionRecord {
         let triangle = &self.triangle;
 
+        //using cramer's rule
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
         let a_col_1 = triangle.positions[0] - triangle.positions[1]; //a - b
@@ -115,9 +116,11 @@ impl Intersectable for IntersectableTriangle {
         let a_col_3 = ray.direction.value(); //d
         let b_col = triangle.positions[0] - ray.position;
 
+        let small_det_23 = a_col_2.y * a_col_3.z - a_col_3.y * a_col_2.z;
+        let small_det_13 = a_col_1.y * a_col_3.z - a_col_3.y * a_col_1.z;
+        let small_det_12 = a_col_1.y * a_col_2.z - a_col_2.y * a_col_1.z;
         //compute determinant of A
-        let mut a_mat = Matrix3::from_cols(a_col_1, a_col_2, *a_col_3);
-        let det_a = a_mat.determinant();
+        let det_a = a_col_1.x * small_det_23 - a_col_2.x * small_det_13 + a_col_3.x * small_det_12;
 
         // Checking that the determinant of A is
         // nonzero is unnecessary. If the determinant is
@@ -126,18 +129,17 @@ impl Intersectable for IntersectableTriangle {
         // no intersection
 
         //compute determinant of A_1
-        a_mat.x = b_col;
-        let det_a1 = a_mat.determinant();
+        let small_det_b3 = b_col.y * a_col_3.z - a_col_3.y * b_col.z;
+        let small_det_b2 = b_col.y * a_col_2.z - a_col_2.y * b_col.z;
+        let det_a1 = b_col.x * small_det_23 - a_col_2.x * small_det_b3 + a_col_3.x * small_det_b2;
 
         //compute determinant of A_2
-        a_mat.y = b_col;
-        a_mat.x = a_col_1;
-        let det_a2 = a_mat.determinant();
+        let small_det_1b = a_col_1.y * b_col.z - b_col.y * a_col_1.z;
+        let det_a2 = a_col_1.x * small_det_b3 - b_col.x * small_det_13 + a_col_3.x * small_det_1b;
 
         //compute determinant of A_3
-        a_mat.z = b_col;
-        a_mat.y = a_col_2;
-        let det_a3 = a_mat.determinant();
+        let small_det_2b = a_col_2.y * b_col.z - b_col.y * a_col_2.z;
+        let det_a3 = a_col_1.x * small_det_2b - a_col_2.x * small_det_1b + b_col.x * small_det_12;
 
         //calculate coordinates
         let beta = det_a1 / det_a;

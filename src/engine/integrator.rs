@@ -217,7 +217,11 @@ fn trace_path(ray: &RayUnit, scene: &Scene, max_bounces: u32) -> Path {
 
 impl Integrator for PathTracerIntegrator {
     fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3 {
-        let max_bounces = rand::random::<u32>() % self.max_bounces;
+        let max_bounces = if self.max_bounces == 0 {
+            0
+        } else {
+            rand::random::<u32>() % self.max_bounces
+        };
         let path = trace_path(ray, scene, max_bounces);
         let color = shade_path(&path, scene, max_bounces);
         color
