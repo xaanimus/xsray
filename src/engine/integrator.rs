@@ -2,6 +2,7 @@ extern crate rand;
 extern crate cgmath;
 
 use std::f32;
+use std::f32::consts::PI;
 use std::rc::Rc;
 
 use utilities::math::*;
@@ -90,9 +91,14 @@ fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
             &intersection.normal.unit(), &light_directions
         );
 
-        let probability_of_incoming_sample = intersection.shader.probability_of_sample(
-            &intersection.normal.unit(), &light_directions
-        );
+        let probability_of_incoming_sample = if i_intersection == path.intersections.len() - 1 {
+            //if last intersection, use a uniform hemisphere
+            1. / 2. * PI
+        } else {
+            intersection.shader.probability_of_sample(
+                &intersection.normal.unit(), &light_directions
+            )
+        };
 
         accumulated_light.mul_assign_element_wise(
             brdf_cos_term / probability_of_incoming_sample

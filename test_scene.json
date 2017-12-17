@@ -28,7 +28,7 @@
         "lights" : [
             {
                 "position" : [2.0, 2.0, 0.0],
-                "intensity": 1.0
+                "intensity": 7.0
             }
         ]
     }
