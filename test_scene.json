@@ -1,8 +1,8 @@
 {
     "render_settings" : {
-        "resolution_width" : 1000,
-        "resolution_height" : 1000,
-        "exposure" : 0.3
+        "resolution_width" : 400,
+        "resolution_height" : 400,
+        "exposure" : 3.0
     },
     "scene" : {
         "background_color" : [0.0, 0.0, 0.1],
@@ -27,7 +27,7 @@
         ],
         "lights" : [
             {
-                "position" : [0.0, 2.0, 0.0],
+                "position" : [2.0, 2.0, 0.0],
                 "intensity": 1.0
             }
         ]

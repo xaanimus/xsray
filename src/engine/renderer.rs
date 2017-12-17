@@ -65,7 +65,7 @@ impl Config {
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
         //let ray = self.scene.camera.shoot_ray(u,v);
         let integrator = PathTracerIntegrator {
-            max_bounces: 4,
+            max_bounces: 8,
             number_samples: 8 
         };
         integrator.shade_camera_point(&self.scene, u, v)
