@@ -86,14 +86,22 @@ impl MakesAABoundingBox for Triangle {
 #[derive(Debug)]
 pub struct IntersectableTriangle {
     triangle: Triangle,
-    aa_bounding_box: AABoundingBox
+    aa_bounding_box: AABoundingBox,
+    a_col_1: Vec3,
+    a_col_2: Vec3,
+    small_det_12: f32
 }
 
 impl IntersectableTriangle {
     pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
+        let a_col_1 = triangle.positions[0] - triangle.positions[1]; //a - b
+        let a_col_2 = triangle.positions[0] - triangle.positions[2]; //a - c
         IntersectableTriangle {
             triangle: triangle.clone(),
-            aa_bounding_box: triangle.make_aa_bounding_box()
+            aa_bounding_box: triangle.make_aa_bounding_box(),
+            a_col_1: a_col_1,
+            a_col_2: a_col_2,
+            small_det_12: a_col_1.y * a_col_2.z - a_col_2.y * a_col_1.z
         }
     }
 }
@@ -111,54 +119,54 @@ impl Intersectable for IntersectableTriangle {
         //using cramer's rule
         //using barymetric coordinates to intersect with this triangle
         // vectors a, b, and c are the 0, 1, and 2 vertices for this triangle
-        let a_col_1 = triangle.positions[0] - triangle.positions[1]; //a - b
-        let a_col_2 = triangle.positions[0] - triangle.positions[2]; //a - c
+        let a_col_1 = &self.a_col_1; //a - b
+        let a_col_2 = &self.a_col_2; //a - c
         let a_col_3 = ray.direction.value(); //d
         let b_col = triangle.positions[0] - ray.position;
 
         let small_det_23 = a_col_2.y * a_col_3.z - a_col_3.y * a_col_2.z;
         let small_det_13 = a_col_1.y * a_col_3.z - a_col_3.y * a_col_1.z;
-        let small_det_12 = a_col_1.y * a_col_2.z - a_col_2.y * a_col_1.z;
+        let small_det_12 = self.small_det_12;
+        let small_det_b3 = b_col.y * a_col_3.z - a_col_3.y * b_col.z;
+        let small_det_b2 = b_col.y * a_col_2.z - a_col_2.y * b_col.z;
+        let small_det_1b = a_col_1.y * b_col.z - b_col.y * a_col_1.z;
+        let small_det_2b = a_col_2.y * b_col.z - b_col.y * a_col_2.z;
+
         //compute determinant of A
         let det_a = a_col_1.x * small_det_23 - a_col_2.x * small_det_13 + a_col_3.x * small_det_12;
-
         // Checking that the determinant of A is
         // nonzero is unnecessary. If the determinant is
         // 0 (which is rare), the t computed will be NaN,
         // which will make this function correctly return
         // no intersection
 
-        //compute determinant of A_1
-        let small_det_b3 = b_col.y * a_col_3.z - a_col_3.y * b_col.z;
-        let small_det_b2 = b_col.y * a_col_2.z - a_col_2.y * b_col.z;
-        let det_a1 = b_col.x * small_det_23 - a_col_2.x * small_det_b3 + a_col_3.x * small_det_b2;
+        //compute determinant of A_3
+        let det_a3 = a_col_1.x * small_det_2b - a_col_2.x * small_det_1b + b_col.x * small_det_12;
+        let t = det_a3 / det_a;
 
         //compute determinant of A_2
-        let small_det_1b = a_col_1.y * b_col.z - b_col.y * a_col_1.z;
         let det_a2 = a_col_1.x * small_det_b3 - b_col.x * small_det_13 + a_col_3.x * small_det_1b;
-
-        //compute determinant of A_3
-        let small_det_2b = a_col_2.y * b_col.z - b_col.y * a_col_2.z;
-        let det_a3 = a_col_1.x * small_det_2b - a_col_2.x * small_det_1b + b_col.x * small_det_12;
-
-        //calculate coordinates
-        let beta = det_a1 / det_a;
         let gamma = det_a2 / det_a;
-        let t = det_a3 / det_a;
+
+        //compute determinant of A_1
+        let det_a1 = b_col.x * small_det_23 - a_col_2.x * small_det_b3 + a_col_3.x * small_det_b2;
+        let beta = det_a1 / det_a;
 
         //test inside traignle and t range
         if beta + gamma < 1.0 && beta > 0.0 && gamma > 0.0 &&
             ray.t_range.start < t && t < ray.t_range.end
-            {
-                let alpha = 1.0 - beta - gamma;
-                //interpolate
-                IntersectionRecord {
-                    position: ray.position + t * ray.direction.value(),
-                    normal: triangle.normals[0] * alpha + triangle.normals[1] * beta + triangle.normals[2] * gamma,
-                    t: t,
-                    shader: Some(triangle.shader.clone())
-                }
-            } else {
+        {
+            let alpha = 1.0 - beta - gamma;
+            //interpolate
+            IntersectionRecord {
+                position: ray.position + t * ray.direction.value(),
+                normal: triangle.normals[0] * alpha +
+                    triangle.normals[1] * beta +
+                    triangle.normals[2] * gamma,
+                t: t,
+                shader: Some(triangle.shader.clone())
+            }
+        } else {
             IntersectionRecord::no_intersection()
         }
     }
