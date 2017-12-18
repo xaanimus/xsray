@@ -113,6 +113,7 @@ impl HasAABoundingBox for IntersectableTriangle {
 }
 
 impl Intersectable for IntersectableTriangle {
+    #[target_feature = "+avx"]
     fn intersect_obstruct(&self, ray: &RayUnit, _: bool) -> IntersectionRecord {
         let triangle = &self.triangle;
 
@@ -122,13 +123,12 @@ impl Intersectable for IntersectableTriangle {
         let a_col_1 = &self.a_col_1; //a - b
         let a_col_2 = &self.a_col_2; //a - c
         let a_col_3 = ray.direction.value(); //d
-        let b_col = triangle.positions[0] - ray.position;
+        let b_col = triangle.positions[0] - ray.position; //critical, vectorize
 
+        //currently using avx with 128bit vectors
         let small_det_23 = a_col_2.y * a_col_3.z - a_col_3.y * a_col_2.z;
         let small_det_13 = a_col_1.y * a_col_3.z - a_col_3.y * a_col_1.z;
         let small_det_12 = self.small_det_12;
-        let small_det_b3 = b_col.y * a_col_3.z - a_col_3.y * b_col.z;
-        let small_det_b2 = b_col.y * a_col_2.z - a_col_2.y * b_col.z;
         let small_det_1b = a_col_1.y * b_col.z - b_col.y * a_col_1.z;
         let small_det_2b = a_col_2.y * b_col.z - b_col.y * a_col_2.z;
 
@@ -143,31 +143,35 @@ impl Intersectable for IntersectableTriangle {
         //compute determinant of A_3
         let det_a3 = a_col_1.x * small_det_2b - a_col_2.x * small_det_1b + b_col.x * small_det_12;
         let t = det_a3 / det_a;
+        if t <= ray.t_range.start || ray.t_range.end <= t {
+            return IntersectionRecord::no_intersection();
+        }
+
+        //compute determinant of A_1
+        let small_det_b2 = b_col.y * a_col_2.z - a_col_2.y * b_col.z;
+        let small_det_b3 = b_col.y * a_col_3.z - a_col_3.y * b_col.z;
+        let det_a1 = b_col.x * small_det_23 - a_col_2.x * small_det_b3 + a_col_3.x * small_det_b2;
+        let beta = det_a1 / det_a;
+        if beta <= 0.0 || 1.0 <= beta {
+            return IntersectionRecord::no_intersection();
+        }
 
         //compute determinant of A_2
         let det_a2 = a_col_1.x * small_det_b3 - b_col.x * small_det_13 + a_col_3.x * small_det_1b;
         let gamma = det_a2 / det_a;
+        if gamma <= 0.0 || 1.0 <= gamma + beta {
+            return IntersectionRecord::no_intersection();
+        }
 
-        //compute determinant of A_1
-        let det_a1 = b_col.x * small_det_23 - a_col_2.x * small_det_b3 + a_col_3.x * small_det_b2;
-        let beta = det_a1 / det_a;
-
-        //test inside traignle and t range
-        if beta + gamma < 1.0 && beta > 0.0 && gamma > 0.0 &&
-            ray.t_range.start < t && t < ray.t_range.end
-        {
-            let alpha = 1.0 - beta - gamma;
-            //interpolate
-            IntersectionRecord {
-                position: ray.position + t * ray.direction.value(),
-                normal: triangle.normals[0] * alpha +
-                    triangle.normals[1] * beta +
-                    triangle.normals[2] * gamma,
-                t: t,
-                shader: Some(triangle.shader.clone())
-            }
-        } else {
-            IntersectionRecord::no_intersection()
+        let alpha = 1.0 - beta - gamma;
+        //interpolate
+        IntersectionRecord {
+            position: ray.position + t * ray.direction.value(),
+            normal: triangle.normals[0] * alpha +
+                triangle.normals[1] * beta +
+                triangle.normals[2] * gamma,
+            t: t,
+            shader: Some(triangle.shader.clone())
         }
     }
 }

@@ -1,3 +1,5 @@
+#![feature(target_feature)]
+
 mod engine;
 mod config_loader;
 mod utilities;

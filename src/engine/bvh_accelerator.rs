@@ -83,7 +83,7 @@ fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
 #[derive(Debug)]
 pub enum BVHAccelerator {
     Node{first: Box<BVHAccelerator>, second:Box<BVHAccelerator>, wrapper:AABoundingBox},
-    Leaf{start: usize, end: usize},
+    Leaf{start: usize, end: usize, wrapper:AABoundingBox},
     Nothing
 }
 
@@ -96,15 +96,19 @@ impl BVHAccelerator {
     ///want that to happen
     /// start_index is what index objects[0] is in the largest enclosing objects array
     fn build_tree<T: HasAABoundingBox>(objects: &mut [T], start_index: usize) -> BVHAccelerator {
+        let objects_bbox = get_aa_bounding_box(objects);
 
         if objects.len() == 0 {
             return BVHAccelerator::Nothing
-        } else if objects.len() <= 10 {
-            return BVHAccelerator::Leaf{start: start_index, end: start_index + objects.len()};
+        } else if objects.len() <= 6 {
+            return BVHAccelerator::Leaf{
+                start: start_index,
+                end: start_index + objects.len(),
+                wrapper: objects_bbox
+            };
         }
 
         //find widest axis
-        let objects_bbox = get_aa_bounding_box(objects);
         let dx = objects_bbox.upper.x - objects_bbox.lower.x;
         let dy = objects_bbox.upper.y - objects_bbox.lower.y;
         let dz = objects_bbox.upper.z - objects_bbox.lower.z;
@@ -162,22 +166,28 @@ impl BVHAccelerator {
             &Node{ref first, ref second, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
                     let first_intersected =
-                        first.intersect_box_intern(&ray, inverse_direction, obstruction_only, intersection_indices);
+                        first.intersect_box_intern(&ray, inverse_direction,
+                                                   obstruction_only, intersection_indices);
                     if obstruction_only && first_intersected {
                         return true;
                     }
                     let second_intersected =
-                        second.intersect_box_intern(&ray, inverse_direction, obstruction_only, intersection_indices);
+                        second.intersect_box_intern(&ray, inverse_direction,
+                                                    obstruction_only, intersection_indices);
                     first_intersected || second_intersected
                 } else {
                     false
                 }
             },
-            &Leaf{start, end} => {
-                for i in start..end {
-                    intersection_indices.push(i)
+            &Leaf{start, end, ref wrapper} => {
+                if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
+                    for i in start..end {
+                        intersection_indices.push(i)
+                    }
+                    true
+                } else {
+                    false
                 }
-                true
             }
             &Nothing => false
         }
