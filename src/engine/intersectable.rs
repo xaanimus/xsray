@@ -152,6 +152,10 @@ impl Intersectable for IntersectableTriangle {
             return false;
         }
 
+        if !(t < record.t) {
+            return false;
+        }
+
         //compute determinant of A_1
         let small_det_b2 = b_col.y * a_col_2.z - a_col_2.y * b_col.z;
         let small_det_b3 = b_col.y * a_col_3.z - a_col_3.y * b_col.z;

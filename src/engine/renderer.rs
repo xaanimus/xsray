@@ -46,38 +46,21 @@ impl Config {
         let mut buffer = RgbImage::new(i32_to_u32(self.settings.resolution_width),
                                    i32_to_u32(self.settings.resolution_height));
 
-        //{
-        //    let blocks = ImageBlockIterator::new(&buffer, 8, 8);
-        //    for block in blocks {
-        //        println!("rendering {:?}", block);
-        //        for x in block.start_x()..block.end_x() {
-        //            for y in block.start_y()..block.end_y() {
-        //                let mut pixel = buffer.get_pixel_mut(x,y);
-        //                let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
-        //                let render_color = self.render_point(u,v);
-        //                let (r, g, b) = render_color.pixel_rgb8_values();
-        //                pixel.data[0] = r;
-        //                pixel.data[1] = g;
-        //                pixel.data[2] = b;
-        //            }
-        //        }
-        //    }
-        //}
-
-        for x in 0..buffer.width() {
-            for y in 0..buffer.height() {
-                //if x == 200 && y == 200 {
-                //    println!("asdf");
-                //} else {
-                //    continue;
-                //}
-                let mut pixel = buffer.get_pixel_mut(x,y);
-                let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
-                let render_color = self.render_point(u,v);
-                let (r, g, b) = render_color.pixel_rgb8_values();
-                pixel.data[0] = r;
-                pixel.data[1] = g;
-                pixel.data[2] = b;
+        {
+            let blocks = ImageBlockIterator::new(&buffer, 8, 8);
+            for block in blocks {
+                println!("rendering {:?}", block);
+                for x in block.start_x()..block.end_x() {
+                    for y in block.start_y()..block.end_y() {
+                        let mut pixel = buffer.get_pixel_mut(x,y);
+                        let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
+                        let render_color = self.render_point(u,v);
+                        let (r, g, b) = render_color.pixel_rgb8_values();
+                        pixel.data[0] = r;
+                        pixel.data[1] = g;
+                        pixel.data[2] = b;
+                    }
+                }
             }
         }
 
