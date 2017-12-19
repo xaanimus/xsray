@@ -100,7 +100,7 @@ impl BVHAccelerator {
 
         if objects.len() == 0 {
             return BVHAccelerator::Nothing
-        } else if objects.len() <= 6 {
+        } else if objects.len() <= 4 {
             return BVHAccelerator::Leaf{
                 start: start_index,
                 end: start_index + objects.len(),

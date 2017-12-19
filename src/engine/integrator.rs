@@ -235,8 +235,10 @@ impl Integrator for PathTracerIntegrator {
 
     fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32) -> Color3 {
         let ray = scene.camera.shoot_ray(u,v);
-        (0..self.number_samples)
-            .fold(Color3::zero(), |acc, _| acc + self.shade_ray(&ray, scene)) /
-            self.number_samples as f32
+        let mut acc = Color3::zero();
+        for _ in 0..self.number_samples {
+            acc += self.shade_ray(&ray, scene);
+        }
+        acc / self.number_samples as f32
     }
 }

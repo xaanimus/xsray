@@ -103,15 +103,12 @@ impl Scene {
 
     pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
         let indices = self.intersection_accel.intersect_boxes(ray, false);
-        let mut max_intersection = IntersectionRecord::no_intersection();
+        let mut record = IntersectionRecord::no_intersection();
         for i in indices {
             let obj = &self.triangles[i];
-            let intersection = obj.intersect(ray);
-            if intersection.t < max_intersection.t {
-                max_intersection = intersection;
-            }
+            obj.intersect(ray, &mut record);
         }
-        max_intersection
+        record
     }
 
     ///detects an intersection between origin and destination. Not necessarily
@@ -128,14 +125,13 @@ impl Scene {
         };
 
         let indices = self.intersection_accel.intersect_boxes(&ray, false);
+        let mut record = IntersectionRecord::no_intersection();
         for i in indices {
             let obj = &self.triangles[i];
-            let intersection = obj.intersect(&ray);
-            if intersection.t.is_finite() {
-                return intersection
+            if obj.intersect(&ray, &mut record) {
+                return record
             }
         }
-
-        IntersectionRecord::no_intersection()
+        record
     }
 }
