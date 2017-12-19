@@ -46,23 +46,38 @@ impl Config {
         let mut buffer = RgbImage::new(i32_to_u32(self.settings.resolution_width),
                                    i32_to_u32(self.settings.resolution_height));
 
-        {
-            let blocks = ImageBlockIterator::new(&buffer, 8, 8);
-            for block in blocks {
-                for x in block.start_x()..block.end_x() {
-                    for y in block.start_y()..block.end_y() {
-                        if x == 200 && y == 200 {
-                            println!("asdf");
-                        }
-                        let mut pixel = buffer.get_pixel_mut(x,y);
-                        let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
-                        let render_color = self.process_color(self.render_point(u,v));
-                        let (r, g, b) = render_color.pixel_rgb8_values();
-                        pixel.data[0] = r;
-                        pixel.data[1] = g;
-                        pixel.data[2] = b;
-                    }
-                }
+        //{
+        //    let blocks = ImageBlockIterator::new(&buffer, 8, 8);
+        //    for block in blocks {
+        //        println!("rendering {:?}", block);
+        //        for x in block.start_x()..block.end_x() {
+        //            for y in block.start_y()..block.end_y() {
+        //                let mut pixel = buffer.get_pixel_mut(x,y);
+        //                let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
+        //                let render_color = self.render_point(u,v);
+        //                let (r, g, b) = render_color.pixel_rgb8_values();
+        //                pixel.data[0] = r;
+        //                pixel.data[1] = g;
+        //                pixel.data[2] = b;
+        //            }
+        //        }
+        //    }
+        //}
+
+        for x in 0..buffer.width() {
+            for y in 0..buffer.height() {
+                //if x == 200 && y == 200 {
+                //    println!("asdf");
+                //} else {
+                //    continue;
+                //}
+                let mut pixel = buffer.get_pixel_mut(x,y);
+                let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
+                let render_color = self.render_point(u,v);
+                let (r, g, b) = render_color.pixel_rgb8_values();
+                pixel.data[0] = r;
+                pixel.data[1] = g;
+                pixel.data[2] = b;
             }
         }
 
@@ -72,8 +87,8 @@ impl Config {
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
         //let ray = self.scene.camera.shoot_ray(u,v);
         let integrator = PathTracerIntegrator {
-            max_bounces: 4,
-            number_samples: 4 
+            max_bounces: 0,
+            number_samples: 1 
         };
         integrator.shade_camera_point(&self.scene, u, v)
     }

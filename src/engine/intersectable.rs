@@ -131,7 +131,6 @@ impl Intersectable for IntersectableTriangle {
         let a_col_3 = ray.direction.value(); //d
         let b_col = triangle.positions[0] - ray.position; //critical, vectorize
 
-        //currently using avx with 128bit vectors
         let small_det_23 = a_col_2.y * a_col_3.z - a_col_3.y * a_col_2.z;
         let small_det_13 = a_col_1.y * a_col_3.z - a_col_3.y * a_col_1.z;
         let small_det_12 = self.small_det_12;
