@@ -17,7 +17,7 @@ scene:
             kind: Diffuse
             color: [0.8, 0.8, 1.0]
     meshes:
-        - src: 'assets/models/helios.obj'
+        - src: './../models/helios.obj'
           shader: 'white_diffuse'
     lights:
         - position: [2.5, 2.5, 4.5]

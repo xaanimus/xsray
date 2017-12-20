@@ -19,7 +19,7 @@ use engine::renderer::Config;
 pub fn load_yml_config_from_string(directory_prefix: &str, text: &str)
                                    -> Result<Config, serde_yaml::Error>
 {
-    let re = Regex::new(r"'@/(?P<path>.*)'").unwrap();
+    let re = Regex::new(r"'\./(?P<path>.*)'").unwrap();
     let text_with_relative_dirs: String = re.replace_all(
         text,
         format!("{}/$path", directory_prefix).as_str()
@@ -41,6 +41,7 @@ fn main() {
 
     let directory_string = filepath.parent().unwrap()
         .to_str().unwrap();
+    println!("scene directory: {}", directory_string);
 
     //load scene
     //let render_config = config_loader::load_config_from_string(s.as_str()).unwrap();
