@@ -27,7 +27,7 @@ fn sample_light(scene: &Scene) -> Option<LightSample> {
     let light: &Light = &scene.lights[light_i];
 
     Some(LightSample {
-        position: light.position,
+        position: light.position.get(),
         intensity: Color3::new(light.intensity, light.intensity, light.intensity),
         sample_probability: 1. / scene.lights.len() as f32
     })

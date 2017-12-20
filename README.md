@@ -2,6 +2,7 @@
 a cool rust ray tracer
 
 # TODO
+- [ ] Check out nalgebra
 - [ ] Object transform
 - [ ] Anti aliasing
 - [ ] Support several objects

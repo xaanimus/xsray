@@ -14,6 +14,7 @@ extern crate json;
 use engine::scene_builder::*;
 use engine::scene::{Scene, MeshObject, MeshInfo, Light};
 use utilities::math::*;
+use utilities::codable::CodableWrapper;
 use engine::camera::*;
 use engine::shader::*;
 use engine::renderer::*;
@@ -95,16 +96,18 @@ fn parse_shader_object(obj: &json::JsonValue) -> Option<Rc<Shader>> {
     }
 }
 
-fn parse_shader_array(obj: &json::JsonValue) -> Option<HashMap<String, Rc<Shader>>> {
+fn parse_shader_array(obj: &json::JsonValue)
+                      -> Option<HashMap<String, CodableWrapper<Rc<Shader>>>>
+{
     //check that the obj is an array
     match obj {
         &json::JsonValue::Object(ref shader_object_map) => {
-            let mut shaders = HashMap::<String, Rc<Shader>>::new();
+            let mut shaders = HashMap::<String, CodableWrapper<Rc<Shader>>>::new();
             let mut iterator = shader_object_map.iter();
             while let Some((key, shader_obj)) = iterator.next() {
                 //try to parse each shader object
                 if let Some(shader) = parse_shader_object(shader_obj) {
-                    shaders.insert(key.to_string(), shader);
+                    shaders.insert(key.to_string(), shader.into());
                 }
             }
             Some(shaders)
@@ -159,8 +162,10 @@ fn parse_mesh_info(filepath: &str) -> Result<MeshInfo, ConfigError> {
 }
 
 //given an array of mesh objects, parse and convert to MeshObject
-fn parse_mesh_array<'a,'b,'c>(obj: &json::JsonValue, shaders: &'a HashMap<String, Rc<Shader>>)
-                           -> Result<Vec<MeshObject>, ConfigError<'b, 'c>>
+fn parse_mesh_array<'a,'b,'c>(
+    obj: &json::JsonValue,
+    shaders: &'a HashMap<String, CodableWrapper<Rc<Shader>>>
+) -> Result<Vec<MeshObject>, ConfigError<'b, 'c>>
 {
     match obj {
         &json::JsonValue::Array(ref vec) => {
@@ -174,7 +179,7 @@ fn parse_mesh_array<'a,'b,'c>(obj: &json::JsonValue, shaders: &'a HashMap<String
                 {
                     match parse_mesh_info(mesh_info_src) {
                         Ok(mesh_info) => {
-                            if let Some(mesh) = MeshObject::new(&mesh_info, shader) {
+                            if let Some(mesh) = MeshObject::new(&mesh_info, &shader.get()) {
                                 meshes.push(mesh);
                             } else {
                                 return Err(ConfigError::MiscError("Could not construct a valid mesh"))
@@ -202,7 +207,7 @@ fn parse_lights<'a, 'b>(obj: &json::JsonValue) -> Result<Vec<Light>, ConfigError
                     parse_vec3(&light_obj["position"]),
                     light_obj["intensity"].as_f32())
                 {
-                    lights.push(Light{position: pos_vec, intensity: intensity});
+                    lights.push(Light{position: pos_vec.into(), intensity: intensity});
                 } else {
                     return Err(ConfigError::MiscError("Parse lights error"))
                 }
@@ -242,12 +247,12 @@ pub fn load_config_from_string(text: &str) -> Result<Config, ConfigError> {
                 parse_camera(&sc_obj["camera"], aspect_ratio)
             ) {
                 let shaders = parse_shader_array(&sc_obj["shaders"])
-                    .unwrap_or(HashMap::<String, Rc<Shader>>::new());
+                    .unwrap_or(HashMap::new());
                 {
                     let meshes = try!(parse_mesh_array(&sc_obj["meshes"], &shaders));
                     let lights = try!(parse_lights(&sc_obj["lights"]));
                     Ok(SceneBuilder::new()
-                        .background_color(backgnd_color)
+                        .background_color(backgnd_color.into())
                         .camera(camera)
                         .shaders(shaders)
                         .meshes(meshes)

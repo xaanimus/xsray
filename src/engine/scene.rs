@@ -1,12 +1,19 @@
+//TODO reorganize this mess
 extern crate cgmath;
+extern crate serde;
 
-use super::math::*;
-use super::color::*;
+use self::serde::de::Error;
+
+use utilities::codable::*;
+use utilities::math::*;
+use utilities::color::*;
+
 use super::camera::*;
 use super::intersectable::*;
-use super::scene_builder::SceneBuilder;
+use super::scene_builder::{SceneBuilder, SceneSpec};
 use super::shader::{Shader};
 use super::bvh_accelerator::*;
+
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
@@ -65,10 +72,9 @@ impl fmt::Debug for MeshObject {
     }
 }
 
-
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct Light {
-    pub position: Vec3,
+    pub position: CodableWrapper<Vec3>,
     pub intensity: f32
 }
 
@@ -83,6 +89,17 @@ pub struct Scene {
     pub triangles: Vec<IntersectableTriangle>
 }
 
+impl<'de> Deserialize<'de> for Scene {
+    fn deserialize<D>(deserializer: D) -> Result<Scene, D::Error>
+        where D: Deserializer<'de>
+    {
+        let spec = SceneSpec::deserialize(deserializer)?;
+        let builder = spec.to_builder()
+            .map_err(|scene_error| D::Error::custom(scene_error.0))?;
+        Ok(Scene::new_from_builder(builder))
+    }
+}
+
 impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {
         let mut triangles: Vec<IntersectableTriangle> = builder.meshes.into_iter()
@@ -92,9 +109,15 @@ impl Scene {
             .collect();
 
         Scene {
-            background_color: builder.background_color,
+            background_color: builder.background_color.get(),
             camera: builder.camera,
-            shaders: builder.shaders,
+            shaders: {
+                let mut shaders = HashMap::<String, Rc<Shader>>::new();
+                for (key, value) in builder.shaders.iter() {
+                    shaders.insert(key.clone(), value.get());
+                }
+                shaders
+            },
             lights: builder.lights,
             intersection_accel: BVHAccelerator::new(&mut triangles),
             triangles: triangles
@@ -135,3 +158,4 @@ impl Scene {
         record
     }
 }
+

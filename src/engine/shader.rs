@@ -1,3 +1,7 @@
+extern crate serde;
+use self::serde::de::Error;
+use utilities::codable::*;
+
 use super::intersectable::IntersectionRecord;
 use super::scene::{Scene};
 use super::math::*;
@@ -7,6 +11,7 @@ use std::fmt::{Debug, Formatter};
 use std::fmt;
 use std::f32;
 use std::f32::consts::PI;
+use std::rc::Rc;
 
 pub fn default_shader() -> DiffuseShader {
     DiffuseShader {
@@ -17,6 +22,25 @@ pub fn default_shader() -> DiffuseShader {
 pub struct LightDirectionPair<'a> {
     pub incoming: &'a UnitVec3,
     pub outgoing: &'a UnitVec3
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind")]
+enum DeserializableShaderSpec {
+    Diffuse { color: CodableWrapper<Color3> }
+}
+
+impl<'de> Deserialize<'de> for CodableWrapper<Rc<Shader>> {
+    fn deserialize<D>(deserializer: D) -> Result<CodableWrapper<Rc<Shader>>, D::Error>
+        where D: Deserializer<'de>
+    {
+        use self::DeserializableShaderSpec::*;
+        let shader_spec = DeserializableShaderSpec::deserialize(deserializer)?;
+        let shader_ptr = match shader_spec {
+            Diffuse {color} => Rc::new(DiffuseShader::new(color.get()))
+        };
+        Ok(CodableWrapper(shader_ptr))
+    }
 }
 
 pub trait Shader {
@@ -63,9 +87,10 @@ impl Shader for DiffuseShader {
 
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
         scene.lights.iter().fold(Color3::new(0.0, 0.0, 0.0), |acc, light| {
-            let light_vec = light.position - record.position;
+            let light_vec = light.position.get() - record.position;
             //see if there is an obstruction to this light
-            if scene.intersect_for_obstruction(record.position, light.position).t < f32::INFINITY {
+            if scene.intersect_for_obstruction(record.position, light.position.get())
+                .t < f32::INFINITY {
                 acc
             } else {
                 f32::max(0., record.normal.dot(light_vec.normalize())) *

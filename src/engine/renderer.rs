@@ -13,7 +13,7 @@ fn i32_to_u32(x: i32) -> u32 {
     max(x, 0) as u32
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct RenderSettings {
     pub resolution_width: i32,
     pub resolution_height: i32,
@@ -27,7 +27,7 @@ impl RenderSettings {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub settings: RenderSettings,
     pub scene: Scene,
@@ -49,7 +49,6 @@ impl Config {
         {
             let blocks = ImageBlockIterator::new(&buffer, 8, 8);
             for block in blocks {
-                println!("rendering {:?}", block);
                 for x in block.start_x()..block.end_x() {
                     for y in block.start_y()..block.end_y() {
                         let mut pixel = buffer.get_pixel_mut(x,y);

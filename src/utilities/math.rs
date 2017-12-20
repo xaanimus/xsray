@@ -1,4 +1,6 @@
+//TODO reorganize this mess
 extern crate cgmath;
+
 pub use std::ops::{Neg, Range};
 use std::f32;
 
