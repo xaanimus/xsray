@@ -4,7 +4,6 @@ extern crate serde_derive;
 extern crate serde_yaml;
 
 mod engine;
-mod config_loader;
 mod utilities;
 
 use std::env;
