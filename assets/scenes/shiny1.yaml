@@ -1,0 +1,31 @@
+---
+settings:
+    resolution_width: 1000
+    resolution_height: 1000
+    exposure: 1.0
+scene:
+    background_color: [0, 0, 0.1]
+    camera:
+        position: [0, 0, 10]
+        direction: [0, 0, -1]
+        up: [0, 1, 0]
+        plane_distance: 15
+        plane_width: 15 
+        plane_height: 15
+    shaders:
+        blue_diffuse:
+            kind: Diffuse
+            color: [0.8, 0.8, 1.0]
+        shiny:
+            kind: Microfacet
+            color: [1.0, 1.0, 1.0]
+            ior: 2.0
+            roughness: 3.0
+    meshes:
+        - src: './../models/rock.obj'
+          #shader: 'blue_diffuse'
+          shader: 'shiny'
+    lights:
+        - position: [4.0, 4.0, 4.0]
+          intensity: 400.0
+

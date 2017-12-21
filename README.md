@@ -2,7 +2,7 @@
 a cool rust ray tracer
 
 # TODO
-- [ ] Check out nalgebra
+- [ ] gamma correction
 - [ ] Object transform
 - [ ] Anti aliasing
 - [ ] Handle Objs more robustly (accept non triangulated objs, handle normals better)
