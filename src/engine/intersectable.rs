@@ -112,6 +112,7 @@ impl Intersectable for IntersectableTriangle {
         let edge1 = self.edge1; //code is not loading these in vectorized mode. align edge
         let edge2 = self.edge2;
 
+        //TODO impl simd cross product
         let h = ray.direction.value().cross(edge2);
         let a = edge1.dot(h);
         if apprx_eq(a, 0.0, f32::EPSILON) {
