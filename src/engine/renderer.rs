@@ -1,4 +1,5 @@
 extern crate image;
+extern crate time;
 
 use std::cmp::max;
 use self::image::{RgbImage};
@@ -42,6 +43,8 @@ impl Config {
     }
 
     pub fn render(&self) -> RgbImage {
+        println!("rendering...");
+        let start_time = time::precise_time_s();
         // make buffer
         let mut buffer = RgbImage::new(i32_to_u32(self.settings.resolution_width),
                                    i32_to_u32(self.settings.resolution_height));
@@ -62,6 +65,9 @@ impl Config {
                 }
             }
         }
+
+        let end_time = time::precise_time_s();
+        println!("elapsed time: {}s", end_time - start_time);
 
         buffer
     }

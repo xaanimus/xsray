@@ -102,10 +102,15 @@ impl<'de> Deserialize<'de> for Scene {
 
 impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {
-        let mut triangles: Vec<IntersectableTriangle> = builder.meshes.into_iter()
+        let mut bb_triangles: Vec<TriangleWithAABoundingBox> = builder.meshes.into_iter()
             .flat_map(|mesh: MeshObject| mesh.triangles.iter()
-                      .map(|triangle| IntersectableTriangle::new_from_triangle(triangle))
-                      .collect::<Vec<IntersectableTriangle>>())
+                      .map(|triangle| TriangleWithAABoundingBox::new_from_triangle(triangle))
+                      .collect::<Vec<TriangleWithAABoundingBox>>())
+            .collect();
+
+        let intersection_accel = BVHAccelerator::new(&mut bb_triangles);
+        let intersectable_triangles: Vec<IntersectableTriangle> = bb_triangles.iter()
+            .map(|bb_triangle| IntersectableTriangle::new_from_triangle(&bb_triangle.triangle))
             .collect();
 
         Scene {
@@ -119,8 +124,8 @@ impl Scene {
                 shaders
             },
             lights: builder.lights,
-            intersection_accel: BVHAccelerator::new(&mut triangles),
-            triangles: triangles
+            intersection_accel: intersection_accel,
+            triangles: intersectable_triangles
         }
     }
 

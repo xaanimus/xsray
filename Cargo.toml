@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Serge-Olivier Amega"]
 
 [dependencies]
+  time = "*"
   image = "*"
   cgmath = "0.12.0"
   obj-rs = "0.4.17"
