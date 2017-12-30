@@ -1,19 +1,19 @@
 ---
 settings:
-    resolution_width: 1000
-    resolution_height: 1000
+    resolution_width: 400
+    resolution_height: 400
     exposure: 1.0
 integrator:
     kind: PathTracer
-    max_bounces: 0
-    number_of_samples: 1
+    max_bounces: 4
+    number_of_samples: 128
 scene:
     background_color: [0, 0, 0.1]
     camera:
-        position: [0, 0, 10]
-        direction: [0, 0, -1]
+        position: [5, 2.5, -4.0]
+        direction: [-1, 0, 1]
         up: [0, 1, 0]
-        plane_distance: 15
+        plane_distance: 7
         plane_width: 15 
         plane_height: 15
     shaders:
@@ -24,12 +24,14 @@ scene:
             kind: Microfacet
             color: [1.0, 1.0, 1.0]
             ior: 2.0
-            roughness: 3.0
+            roughness: 0.6
     meshes:
         - src: './../models/rock.obj'
           #shader: 'blue_diffuse'
           shader: 'shiny'
+        - src: './../models/cornell_box/empty_box.obj'
+          shader: 'blue_diffuse'
     lights:
-        - position: [4.0, 4.0, 4.0]
-          intensity: 600.0
+        - position: [0, 3.0, 1.5]
+          intensity: 100.0
 

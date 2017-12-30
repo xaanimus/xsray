@@ -4,12 +4,32 @@ extern crate cgmath;
 use std::f32;
 use std::f32::consts::PI;
 use std::rc::Rc;
+use std::fmt::Debug;
 
 use utilities::math::*;
 use utilities::color::*;
 use super::scene::*;
 use super::shader::*;
 use self::cgmath::Matrix3;
+
+#[derive(Deserialize)]
+#[serde(tag = "kind")]
+pub enum IntegratorSpec {
+    PathTracer {max_bounces: u32, number_of_samples: u32}
+}
+
+impl IntegratorSpec {
+    pub fn into_integrator(&self) -> Box<Integrator> {
+        use self::IntegratorSpec::*;
+        match *self {
+            PathTracer {max_bounces, number_of_samples} =>
+                Box::new(PathTracerIntegrator{
+                    max_bounces: max_bounces,
+                    number_samples: number_of_samples
+                })
+        }
+    }
+}
 
 //for now just a point light sampler.
 //in the future should sample emissive surfaces
@@ -33,7 +53,6 @@ fn sample_light(scene: &Scene) -> Option<LightSample> {
     })
 }
 
-
 struct PathIntersection {
     shader: Rc<Shader>,
     position: Vec3,
@@ -46,11 +65,12 @@ struct Path {
     light_sample: Option<LightSample>
 }
 
-pub trait Integrator {
+pub trait Integrator: Debug {
     fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3;
     fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32) -> Color3;
 }
 
+#[derive(Debug, Clone)]
 pub struct PathTracerIntegrator {
     pub max_bounces: u32,
     pub number_samples: u32
@@ -115,65 +135,6 @@ fn shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
     accumulated_light.mul_element_wise(light_intensity) / light_distance.powi(2)
 }
 
-//fn _shade_path(path: &Path, scene: &Scene, max_bounces: u32) -> Color3 {
-//    if path.intersections.is_empty() { return Color3::zero() }
-//
-//    let light_sample = &path.light_sample;
-//    let mut accumulated_light = Color3::new(1., 1., 1.);
-//
-//    let mut previous_position = path.start_position;
-//    for i_intersection in 0..path.intersections.len() {
-//        let intersection = &path.intersections[i_intersection];
-//        let outgoing_direction = (previous_position - intersection.position).unit();
-//
-//        //if there is another after this one, acculumate the color for this intersection
-//        if let Some(next_intersection) = path.intersections.get(i_intersection + 1) {
-//            let incoming_vector = next_intersection.position - intersection.position;
-//            let incoming_direction = incoming_vector.unit();
-//            let brdf_cos_term = intersection.shader.brdf_cosine_term(
-//                &intersection.normal.unit(), &outgoing_direction, &incoming_direction);
-//
-//            let probability_of_incoming_direction_inverse = 1.0 /
-//                intersection.shader.probability_of_sample(
-//                    &intersection.normal.unit(), &incoming_direction, &outgoing_direction);
-//
-//            let attenuation = 1.; // incoming_vector.magnitude().powi(2);
-//            accumulated_light.mul_assign_element_wise(
-//                brdf_cos_term.mul_element_wise(attenuation) *
-//                    probability_of_incoming_direction_inverse
-//            );
-//        } else if let &Some(ref light) = light_sample {
-//            let light_intersection = scene.intersect_for_obstruction(
-//                intersection.position,
-//                light.position);
-//            if !light_intersection.intersected() {
-//                let light_vector = light.position - intersection.position;
-//                let light_distance = light_vector.magnitude();
-//                let incoming_direction = light_vector.unit();
-//                let incoming_intensity = light.intensity / light_distance.powi(2);
-//                let brdf_cos_term = intersection.shader.brdf_cosine_term(
-//                    &intersection.normal.unit(), &outgoing_direction, &incoming_direction);
-//                let probability_of_incoming_direction_inverse = 1.0 /
-//                    intersection.shader.probability_of_sample(
-//                        &intersection.normal.unit(), &incoming_direction, &outgoing_direction);
-//                accumulated_light = accumulated_light
-//                    .mul_element_wise(brdf_cos_term)
-//                    .mul_element_wise(incoming_intensity) / light.sample_probability *
-//                    probability_of_incoming_direction_inverse;
-//                return accumulated_light
-//            }
-//        }
-//
-//        previous_position = intersection.position;
-//    }
-//
-//    Color3::zero()
-//
-//    //consider changing to max_bounces
-//    //sum_of_samples / path.intersections.len() as f32
-//    //let num_ray_samples = max_bounces as f32 + 1.;
-//    //sum_of_samples / num_ray_samples as f32
-//}
 
 //TODO for bdpt path shading
 fn shade_path_interconnected(path: &Path) {

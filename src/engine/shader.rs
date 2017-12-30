@@ -142,14 +142,17 @@ impl Shader for MicrofacetReflectiveShader {
         let ior = self.index_of_refraction;
         let f0 = fresnel_normal_reflectance(ior);
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
-        let num = fresnel_term(light_directions.outgoing, &half, f0) *
+        //this is broken. fix fresnel? and sample according to ggx
+        let num = //fresnel_term(light_directions.outgoing, &half, f0) *
             distribution_ggx(&half, normal, alpha) *
             geometry_neumann(light_directions, &half, normal);
         let denom =
             light_directions.incoming.value().dot(*normal.value()).abs() *
             light_directions.outgoing.value().dot(*normal.value()).abs() * 4.0;
-        self.color / PI * num / denom
-            * normal.value().dot(*light_directions.incoming.value()) //cos term
+        self.color * num * normal.value().dot(*light_directions.incoming.value())
+            / denom
+        //self.color / PI * num / denom
+        //    * normal.value().dot(*light_directions.incoming.value()) //cos term
     }
 }
 
@@ -161,7 +164,7 @@ fn distribution_ggx(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f3
     let a2 = alpha.powi(2);
     let n = *normal.value();
     let m = *half_vector.value();
-    let denom = PI * { 1.0 + n.dot(m).powi(2) * (a2 - 1.0) }.powi(2);
+    let denom = PI * { n.dot(m).powi(2) * (a2 - 1.0) + 1.0 }.powi(2);
     a2 / denom
 }
 
@@ -172,7 +175,7 @@ fn geometry_neumann(
 ) -> f32 {
     let wi = *light_directions.incoming.value();
     let wo = *light_directions.outgoing.value();
-    let h = *half_vector.value();
+    let _h = *half_vector.value();
     let n = *normal.value();
     let num = n.dot(wi) * n.dot(wo);
     let denom = n.dot(wi).max(n.dot(wo));

@@ -1,5 +1,7 @@
+extern crate serde;
 extern crate image;
 extern crate time;
+extern crate rand;
 
 use std::cmp::max;
 use self::image::{RgbImage};
@@ -9,6 +11,7 @@ use super::integrator::*;
 //clean
 use super::color::*;
 use super::math::*;
+use utilities::codable::*;
 
 fn i32_to_u32(x: i32) -> u32 {
     max(x, 0) as u32
@@ -22,9 +25,31 @@ pub struct RenderSettings {
 }
 
 impl RenderSettings {
+    ///Maps x from [0, resolution_width) to [0, 1)
+    ///and y from [0, resolution_height) to [1, 0)
     fn pixel_to_uv(&self, x: i32, y: i32) -> (f32, f32) {
         ((x as f32 + 0.5) / self.resolution_width as f32,
          ((self.resolution_height - 1 - y) as f32 + 0.5) / self.resolution_width as f32)
+    }
+
+    fn pixel_float_to_uv(&self, x: f32, y: f32) -> (f32, f32) {
+        ((x + 0.5) / self.resolution_width as f32,
+         ((self.resolution_height as f32 - 1.0 - y) + 0.5) / self.resolution_width as f32)
+    }
+
+    fn pixel_to_uv_antialias_sample(&self, x: i32, y: i32) -> (f32, f32) {
+        let x_offset = rand::random::<f32>() - 0.5;
+        let y_offset = rand::random::<f32>() - 0.5;
+        self.pixel_float_to_uv(x as f32 + x_offset, y as f32 + y_offset)
+    }
+}
+
+impl<'de> Deserialize<'de> for CodableWrapper<Box<Integrator>> {
+    fn deserialize<D>(deserializer: D) -> Result<CodableWrapper<Box<Integrator>>, D::Error>
+        where D: Deserializer<'de>
+    {
+        let integrator = IntegratorSpec::deserialize(deserializer)?.into_integrator();
+        Ok(integrator.into())
     }
 }
 
@@ -32,13 +57,15 @@ impl RenderSettings {
 pub struct Config {
     pub settings: RenderSettings,
     pub scene: Scene,
+    integrator: CodableWrapper<Box<Integrator>>
 }
 
 impl Config {
-    pub fn new(settings: RenderSettings, scene: Scene) -> Config {
+    pub fn new(settings: RenderSettings, scene: Scene, integrator: Box<Integrator>) -> Config {
         Config {
             settings: settings,
-            scene: scene
+            scene: scene,
+            integrator: integrator.into()
         }
     }
 
@@ -73,12 +100,7 @@ impl Config {
     }
 
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
-        //let ray = self.scene.camera.shoot_ray(u,v);
-        let integrator = PathTracerIntegrator {
-            max_bounces: 0,
-            number_samples: 1 
-        };
-        integrator.shade_camera_point(&self.scene, u, v)
+        self.integrator.get_ref().shade_camera_point(&self.scene, u, v)
     }
 
     pub fn process_color(&self, color: Color3) -> Color3 {
