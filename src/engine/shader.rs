@@ -143,7 +143,7 @@ impl Shader for MicrofacetReflectiveShader {
         let f0 = fresnel_normal_reflectance(ior);
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
         //this is broken. fix fresnel? and sample according to ggx
-        let num = //fresnel_term(light_directions.outgoing, &half, f0) *
+        let num = fresnel_term(light_directions.outgoing, &half, f0) *
             distribution_ggx(&half, normal, alpha) *
             geometry_neumann(light_directions, &half, normal);
         let denom =

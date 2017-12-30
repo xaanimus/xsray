@@ -4,7 +4,9 @@ extern crate time;
 extern crate rand;
 
 use std::cmp::max;
-use self::image::{RgbImage};
+use std::ops::Deref;
+
+use self::image::{RgbImage, ImageBuffer, Rgb, Pixel};
 use super::scene::*;
 use super::integrator::*;
 
@@ -15,6 +17,13 @@ use utilities::codable::*;
 
 fn i32_to_u32(x: i32) -> u32 {
     max(x, 0) as u32
+}
+
+fn convert_float_to_char_pixel(from: f32) -> u8 {
+    let gamma = 2.2;
+    let gamma_corrected = from.powf(1.0 / gamma);
+    let clipped = gamma_corrected.min(1.0).max(0.0);
+    (clipped * 255.0) as u8
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,6 +69,23 @@ pub struct Config {
     integrator: CodableWrapper<Box<Integrator>>
 }
 
+type Float32Image = ImageBuffer<Rgb<f32>, Vec<f32>>;
+fn image_f32_to_u8(src: &Float32Image) -> RgbImage {
+    let mut result = RgbImage::new(src.width(), src.height());
+    for y in 0..src.height() {
+        for x in 0..src.width() {
+            let float_pixel = src.get_pixel(x,y);
+            let u8_pixel = Rgb {data: [
+                convert_float_to_char_pixel(float_pixel.data[0]),
+                convert_float_to_char_pixel(float_pixel.data[1]),
+                convert_float_to_char_pixel(float_pixel.data[2]),
+            ]};
+            result.put_pixel(x, y, u8_pixel);
+        }
+    }
+    result
+}
+
 impl Config {
     pub fn new(settings: RenderSettings, scene: Scene, integrator: Box<Integrator>) -> Config {
         Config {
@@ -73,8 +99,8 @@ impl Config {
         println!("rendering...");
         let start_time = time::precise_time_s();
         // make buffer
-        let mut buffer = RgbImage::new(i32_to_u32(self.settings.resolution_width),
-                                   i32_to_u32(self.settings.resolution_height));
+        let mut buffer = Float32Image::new(i32_to_u32(self.settings.resolution_width),
+                                           i32_to_u32(self.settings.resolution_height));
 
         {
             let blocks = ImageBlockIterator::new(&buffer, 8, 8);
@@ -84,10 +110,9 @@ impl Config {
                         let mut pixel = buffer.get_pixel_mut(x,y);
                         let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
                         let render_color = self.render_point(u,v);
-                        let (r, g, b) = render_color.pixel_rgb8_values();
-                        pixel.data[0] = r;
-                        pixel.data[1] = g;
-                        pixel.data[2] = b;
+                        pixel.data[0] = render_color.x;
+                        pixel.data[1] = render_color.y;
+                        pixel.data[2] = render_color.z;
                     }
                 }
             }
@@ -96,7 +121,14 @@ impl Config {
         let end_time = time::precise_time_s();
         println!("elapsed time: {}s", end_time - start_time);
 
-        buffer
+        let post_process_start_time = time::precise_time_s();
+
+        let result = image_f32_to_u8(&buffer);
+
+        let post_process_end_time = time::precise_time_s();
+        println!("post processing time: {}s", post_process_end_time - post_process_start_time);
+
+        result
     }
 
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
@@ -133,7 +165,7 @@ struct ImageBlockIterator {
 }
 
 impl ImageBlockIterator {
-    fn new(buffer: &RgbImage,
+    fn new<Pr: image::Primitive + 'static>(buffer: &ImageBuffer<Rgb<Pr>, Vec<Pr>>,
            block_width: u32, block_height: u32) -> ImageBlockIterator {
         ImageBlockIterator {
             buffer_width: buffer.width(),

@@ -24,7 +24,7 @@ scene:
             kind: Microfacet
             color: [1.0, 1.0, 1.0]
             ior: 2.0
-            roughness: 0.6
+            roughness: 0.2
     meshes:
         - src: './../models/rock.obj'
           #shader: 'blue_diffuse'
