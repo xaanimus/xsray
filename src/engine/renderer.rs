@@ -41,10 +41,11 @@ impl RenderSettings {
          ((self.resolution_height as f32 - 1.0 - y) + 0.5) / self.resolution_width as f32)
     }
 
-    fn pixel_to_uv_antialias_sample(&self, x: i32, y: i32) -> (f32, f32) {
-        let x_offset = rand::random::<f32>() - 0.5;
-        let y_offset = rand::random::<f32>() - 0.5;
-        self.pixel_float_to_uv(x as f32 + x_offset, y as f32 + y_offset)
+    fn uv_pixel_info(&self) -> UvPixelInfo {
+        UvPixelInfo {
+            uv_pixel_width: 1.0 / self.resolution_width as f32,
+            uv_pixel_height: 1.0 / self.resolution_height as f32
+        }
     }
 }
 
@@ -140,7 +141,8 @@ impl Config {
     }
 
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
-        self.integrator.get_ref().shade_camera_point(&self.scene, u, v)
+        self.integrator.get_ref()
+            .shade_camera_point(&self.scene, u, v, &self.settings.uv_pixel_info())
     }
 
     pub fn process_color(&self, color: Color3) -> Color3 {

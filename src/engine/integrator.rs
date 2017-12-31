@@ -65,9 +65,15 @@ struct Path {
     light_sample: Option<LightSample>
 }
 
+pub struct UvPixelInfo {
+    pub uv_pixel_width: f32,
+    pub uv_pixel_height: f32
+}
+
 pub trait Integrator: Debug {
     fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3;
-    fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32) -> Color3;
+    fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32,
+                          render_info: &UvPixelInfo) -> Color3;
 }
 
 #[derive(Debug, Clone)]
@@ -182,6 +188,13 @@ fn trace_path(ray: &RayUnit, scene: &Scene, max_bounces: u32) -> Path {
     path
 }
 
+fn sample_anti_alias_uv(u:f32, v:f32, pixel_info: &UvPixelInfo) -> (f32, f32) {
+    let (offset_u, offset_v) =
+        ((rand::random::<f32>() - 0.5) * pixel_info.uv_pixel_width,
+         (rand::random::<f32>() - 0.5) * pixel_info.uv_pixel_height);
+    (u + offset_u, v + offset_v)
+}
+
 impl Integrator for PathTracerIntegrator {
     fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3 {
         let max_bounces = if self.max_bounces == 0 {
@@ -194,10 +207,13 @@ impl Integrator for PathTracerIntegrator {
         color
     }
 
-    fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32) -> Color3 {
-        let ray = scene.camera.shoot_ray(u,v);
+    fn shade_camera_point(
+        &self, scene: &Scene, u: f32, v: f32, pixel_info: &UvPixelInfo
+    ) -> Color3 {
         let mut acc = Color3::zero();
         for _ in 0..self.number_samples {
+            let (anti_alias_u, anti_alias_v) = sample_anti_alias_uv(u, v, pixel_info);
+            let ray = scene.camera.shoot_ray(anti_alias_u, anti_alias_v);
             acc += self.shade_ray(&ray, scene);
         }
         acc / self.number_samples as f32
