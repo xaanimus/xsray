@@ -89,16 +89,12 @@ pub struct Scene {
     pub triangles: Vec<IntersectableTriangle>
 }
 
-impl<'de> Deserialize<'de> for Scene {
-    fn deserialize<D>(deserializer: D) -> Result<Scene, D::Error>
-        where D: Deserializer<'de>
-    {
-        let spec = SceneSpec::deserialize(deserializer)?;
-        let builder = spec.to_builder()
-            .map_err(|scene_error| D::Error::custom(scene_error.0))?;
-        Ok(Scene::new_from_builder(builder))
-    }
-}
+impl_deserialize!(Scene, |deserializer| {
+    let spec = SceneSpec::deserialize(deserializer)?;
+    let builder = spec.to_builder()
+        .map_err(|scene_error| D::Error::custom(scene_error.0))?;
+    Ok(Scene::new_from_builder(builder))
+});
 
 impl Scene {
     pub fn new_from_builder(builder: SceneBuilder) -> Scene {

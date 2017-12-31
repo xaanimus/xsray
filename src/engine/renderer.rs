@@ -48,14 +48,10 @@ impl RenderSettings {
     }
 }
 
-impl<'de> Deserialize<'de> for CodableWrapper<Box<Integrator>> {
-    fn deserialize<D>(deserializer: D) -> Result<CodableWrapper<Box<Integrator>>, D::Error>
-        where D: Deserializer<'de>
-    {
-        let integrator = IntegratorSpec::deserialize(deserializer)?.into_integrator();
-        Ok(integrator.into())
-    }
-}
+impl_deserialize!(CodableWrapper<Box<Integrator>>, |deserializer| {
+                  let integrator = IntegratorSpec::deserialize(deserializer)?.into_integrator();
+                  Ok(integrator.into())
+});
 
 #[derive(Debug, Deserialize)]
 struct PostProcess {

@@ -31,25 +31,21 @@ enum DeserializableShaderSpec {
     Microfacet { color: CodableWrapper<Color3>, ior: f32, roughness: f32}
 }
 
-impl<'de> Deserialize<'de> for CodableWrapper<Rc<Shader>> {
-    fn deserialize<D>(deserializer: D) -> Result<CodableWrapper<Rc<Shader>>, D::Error>
-        where D: Deserializer<'de>
-    {
-        use self::DeserializableShaderSpec::*;
-        let shader_spec = DeserializableShaderSpec::deserialize(deserializer)?;
-        let shader_ptr: Rc<Shader> = match shader_spec {
-            Diffuse {color} => Rc::new(DiffuseShader::new(color.get())),
-            Microfacet { color, ior, roughness} => Rc::new(
-                MicrofacetReflectiveShader {
-                    index_of_refraction: ior,
-                    roughness: roughness,
-                    color: color.get()
-                }
-            )
-        };
-        Ok(CodableWrapper(shader_ptr))
-    }
-}
+impl_deserialize!(CodableWrapper<Rc<Shader>>, |deserializer| {
+    use self::DeserializableShaderSpec::*;
+    let shader_spec = DeserializableShaderSpec::deserialize(deserializer)?;
+    let shader_ptr: Rc<Shader> = match shader_spec {
+        Diffuse {color} => Rc::new(DiffuseShader::new(color.get())),
+        Microfacet { color, ior, roughness} => Rc::new(
+            MicrofacetReflectiveShader {
+                index_of_refraction: ior,
+                roughness: roughness,
+                color: color.get()
+            }
+        )
+    };
+    Ok(CodableWrapper(shader_ptr))
+});
 
 pub trait Shader {
     //TODO get rid of shade function since it's not used anymore

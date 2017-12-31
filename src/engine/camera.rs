@@ -43,21 +43,17 @@ struct CameraSpec {
     pub plane_distance: f32,
 }
 
-impl<'de> Deserialize<'de> for Camera {
-    fn deserialize<D>(deserializer: D) -> Result<Camera, D::Error>
-        where D: Deserializer<'de>
-    {
-        let spec: CameraSpec = CameraSpec::deserialize(deserializer)?;
-        Ok(Camera::new(
-            spec.position.get(),
-            *spec.direction.value(),
-            *spec.up.value(),
-            spec.plane_width,
-            spec.plane_height,
-            spec.plane_distance
-        ))
-    }
-}
+impl_deserialize!(Camera, |deserializer| {
+    let spec: CameraSpec = CameraSpec::deserialize(deserializer)?;
+    Ok(Camera::new(
+        spec.position.get(),
+        *spec.direction.value(),
+        *spec.up.value(),
+        spec.plane_width,
+        spec.plane_height,
+        spec.plane_distance
+    ))
+});
 
 impl Camera {
     pub fn new_default() -> Camera {

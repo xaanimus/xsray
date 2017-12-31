@@ -4,8 +4,9 @@ extern crate serde_derive;
 extern crate serde_yaml;
 extern crate regex;
 
-mod engine;
+#[macro_use]
 mod utilities;
+mod engine;
 
 use std::env;
 use std::fs::File;
