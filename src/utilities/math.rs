@@ -1,25 +1,39 @@
-//TODO reorganize this mess
 extern crate cgmath;
 
 pub use std::ops::{Neg, Range};
 use std::f32;
 
+// type aliases =================
 pub type Vec2 = cgmath::Vector2<f32>;
 pub type Vec3 = cgmath::Vector3<f32>;
 pub type Matrix3 = cgmath::Matrix3<f32>;
+pub type RayUnit = RayBase<UnitVec3>;
 
 pub use self::cgmath::{Zero, One, Array, SquareMatrix, InnerSpace, ElementWise};
+
+// misc functions ===============
+
+pub fn clamp_i32(x: i32) -> u32 {
+    x.max(0) as u32
+}
 
 pub fn apprx_eq(a: f32, b: f32, eps: f32) -> bool {
     let x = (b - a).abs();
     x < eps
 }
 
-impl From<UnitVec3> for Vec3 {
-    fn from(uvec: UnitVec3) -> Self {
-        uvec._value
-    }
+// Traits =======================
+
+pub trait HasUnit<T> {
+    fn unit(&self) -> T;
 }
+
+pub trait HasElemWiseExtrema {
+    fn min_elem_wise(&self, other: &Self) -> Self;
+    fn max_elem_wise(&self, other: &Self) -> Self;
+}
+
+//UnitVec3 ======================
 
 ///A Vec3 that's always normalized
 ///TODO implement into Vec3
@@ -59,8 +73,12 @@ impl Neg for UnitVec3 {
     }
 }
 
-pub trait HasUnit<T> {
-    fn unit(&self) -> T;
+//Vec3 Extensions ===============
+
+impl From<UnitVec3> for Vec3 {
+    fn from(uvec: UnitVec3) -> Self {
+        uvec._value
+    }
 }
 
 ///This converts Vec3 into a unit version of Vec3.
@@ -71,6 +89,18 @@ impl HasUnit<UnitVec3> for Vec3 {
     }
 }
 
+impl HasElemWiseExtrema for Vec3 {
+    fn min_elem_wise(&self, other: &Vec3) -> Vec3{
+        Vec3::new(self.x.min(other.x), self.y.min(other.y), self.z.min(other.z))
+    }
+
+    fn max_elem_wise(&self, other: &Vec3) -> Vec3{
+        Vec3::new(self.x.max(other.x), self.y.max(other.y), self.z.max(other.z))
+    }
+}
+
+//Ray ===========================
+
 #[derive(Clone)]
 pub struct RayBase<T> {
     pub position: Vec3,
@@ -78,7 +108,6 @@ pub struct RayBase<T> {
     pub t_range: Range<f32>,
 }
 
-pub type RayUnit = RayBase<UnitVec3>;
 
 impl<T> RayBase<T> {
     pub fn new(position: Vec3, direction: T) -> RayBase<T> {
@@ -93,20 +122,5 @@ impl<T> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
         ray.t_range.start = 100.0 * f32::EPSILON;
         ray
-    }
-}
-
-pub trait HasElemWiseExtrema {
-    fn min_elem_wise(&self, other: &Self) -> Self;
-    fn max_elem_wise(&self, other: &Self) -> Self;
-}
-
-impl HasElemWiseExtrema for Vec3 {
-    fn min_elem_wise(&self, other: &Vec3) -> Vec3{
-        Vec3::new(self.x.min(other.x), self.y.min(other.y), self.z.min(other.z))
-    }
-
-    fn max_elem_wise(&self, other: &Vec3) -> Vec3{
-        Vec3::new(self.x.max(other.x), self.y.max(other.y), self.z.max(other.z))
     }
 }

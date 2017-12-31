@@ -3,20 +3,14 @@ extern crate image;
 extern crate time;
 extern crate rand;
 
-use std::cmp::max;
-
 use self::image::{RgbImage, ImageBuffer, Rgb, Pixel};
 use super::scene::*;
 use super::integrator::*;
 
 //clean
 use super::color::*;
-use super::math::*;
+use utilities::math::*;
 use utilities::codable::*;
-
-fn clamp_i32(x: i32) -> u32 {
-    max(x, 0) as u32
-}
 
 fn gamma_correct(value: f32, gamma: f32) -> f32 {
     value.powf(1.0 / gamma)

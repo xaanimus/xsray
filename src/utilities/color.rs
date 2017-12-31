@@ -1,21 +1,28 @@
+//TODO before implementing advanced image processing, implement Color3: image::Pixel
+extern crate image;
+
 use std::f32;
+use self::image::Rgb;
 
 use super::math::{Vec3};
 
 pub type Color3 = Vec3;
 
-fn f32_to_u8_color(x: f32) -> u8 {
-    f32::max(0f32, f32::min(x * 255f32, 255f32)) as u8
+fn convert_float_to_char_pixel(from: f32) -> u8 {
+    let clipped = from.min(1.0).max(0.0);
+    (clipped * 255.0) as u8
 }
 
-pub trait PixelRgb8Extractable {
-    fn pixel_rgb8_values(&self) -> (u8, u8, u8);
+pub trait RgbU8Convertible {
+    fn to_rgb(&self) -> Rgb<u8>;
 }
 
-impl PixelRgb8Extractable for Color3 {
-    fn pixel_rgb8_values(&self) -> (u8, u8, u8) {
-        (f32_to_u8_color(self.x),
-         f32_to_u8_color(self.y),
-         f32_to_u8_color(self.z))
+impl RgbU8Convertible for Color3 {
+    fn to_rgb(&self) -> Rgb<u8> {
+        Rgb {data: [
+            convert_float_to_char_pixel(self.x),
+            convert_float_to_char_pixel(self.y),
+            convert_float_to_char_pixel(self.z)
+        ]}
     }
 }
