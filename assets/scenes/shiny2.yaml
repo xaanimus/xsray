@@ -1,4 +1,6 @@
 ---
+post_process:
+    gamma: 2.2
 settings:
     resolution_width: 400
     resolution_height: 400

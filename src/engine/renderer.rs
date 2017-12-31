@@ -4,7 +4,6 @@ extern crate time;
 extern crate rand;
 
 use std::cmp::max;
-use std::ops::Deref;
 
 use self::image::{RgbImage, ImageBuffer, Rgb, Pixel};
 use super::scene::*;
@@ -15,14 +14,16 @@ use super::color::*;
 use super::math::*;
 use utilities::codable::*;
 
-fn i32_to_u32(x: i32) -> u32 {
+fn clamp_i32(x: i32) -> u32 {
     max(x, 0) as u32
 }
 
+fn gamma_correct(value: f32, gamma: f32) -> f32 {
+    value.powf(1.0 / gamma)
+}
+
 fn convert_float_to_char_pixel(from: f32) -> u8 {
-    let gamma = 2.2;
-    let gamma_corrected = from.powf(1.0 / gamma);
-    let clipped = gamma_corrected.min(1.0).max(0.0);
+    let clipped = from.min(1.0).max(0.0);
     (clipped * 255.0) as u8
 }
 
@@ -63,10 +64,25 @@ impl<'de> Deserialize<'de> for CodableWrapper<Box<Integrator>> {
 }
 
 #[derive(Debug, Deserialize)]
+struct PostProcess {
+    gamma: f32
+}
+
+impl PostProcess {
+    fn apply(&self, buffer: &mut Float32Image) {
+        for pixel in buffer.pixels_mut() {
+            *pixel = pixel.map(|value| gamma_correct(value, self.gamma))
+        }
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub settings: RenderSettings,
     pub scene: Scene,
-    integrator: CodableWrapper<Box<Integrator>>
+    integrator: CodableWrapper<Box<Integrator>>,
+    post_process: PostProcess
 }
 
 type Float32Image = ImageBuffer<Rgb<f32>, Vec<f32>>;
@@ -91,7 +107,10 @@ impl Config {
         Config {
             settings: settings,
             scene: scene,
-            integrator: integrator.into()
+            integrator: integrator.into(),
+            post_process: PostProcess {
+                gamma: 2.2
+            }
         }
     }
 
@@ -99,8 +118,8 @@ impl Config {
         println!("rendering...");
         let start_time = time::precise_time_s();
         // make buffer
-        let mut buffer = Float32Image::new(i32_to_u32(self.settings.resolution_width),
-                                           i32_to_u32(self.settings.resolution_height));
+        let mut buffer = Float32Image::new(clamp_i32(self.settings.resolution_width),
+                                           clamp_i32(self.settings.resolution_height));
 
         {
             let blocks = ImageBlockIterator::new(&buffer, 8, 8);
@@ -122,9 +141,8 @@ impl Config {
         println!("elapsed time: {}s", end_time - start_time);
 
         let post_process_start_time = time::precise_time_s();
-
+        self.post_process.apply(&mut buffer);
         let result = image_f32_to_u8(&buffer);
-
         let post_process_end_time = time::precise_time_s();
         println!("post processing time: {}s", post_process_end_time - post_process_start_time);
 
