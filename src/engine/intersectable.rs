@@ -28,6 +28,13 @@ pub struct Triangle {
     pub shader: Rc<Shader>
 }
 
+impl HasSurfaceArea for Triangle {
+    fn surface_area(&self) -> f32 {
+        (self.positions[1] - self.positions[0]).cross(self.positions[2] - self.positions[0])
+            .magnitude() / 2.0
+    }
+}
+
 impl Clone for Triangle {
     fn clone(&self) -> Triangle {
         Triangle {
@@ -57,14 +64,16 @@ impl MakesAABoundingBox for Triangle {
 
 pub struct TriangleWithAABoundingBox {
     pub triangle: Triangle,
-    aa_bounding_box: AABoundingBox
+    aa_bounding_box: AABoundingBox,
+    surface_area: f32
 }
 
 impl TriangleWithAABoundingBox {
     pub fn new_from_triangle(triangle: &Triangle) -> TriangleWithAABoundingBox {
         TriangleWithAABoundingBox {
             triangle: triangle.clone(),
-            aa_bounding_box: triangle.make_aa_bounding_box()
+            aa_bounding_box: triangle.make_aa_bounding_box(),
+            surface_area: triangle.surface_area()
         }
     }
 }
@@ -72,6 +81,12 @@ impl TriangleWithAABoundingBox {
 impl HasAABoundingBox for TriangleWithAABoundingBox {
     fn aa_bounding_box_ref(&self) -> &AABoundingBox {
         &self.aa_bounding_box
+    }
+}
+
+impl HasSurfaceArea for TriangleWithAABoundingBox {
+    fn surface_area(&self) -> f32 {
+        self.surface_area
     }
 }
 
