@@ -126,11 +126,13 @@ impl Scene {
     }
 
     pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
-        let indices = self.intersection_accel.intersect_boxes(ray, false);
+        let index_ranges = self.intersection_accel.intersect_boxes(ray);
         let mut record = IntersectionRecord::no_intersection();
-        for i in indices {
-            let obj = &self.triangles[i];
-            obj.intersect(ray, &mut record);
+        for range in index_ranges {
+            for i in range {
+                let obj = &self.triangles[i];
+                obj.intersect(ray, &mut record);
+            }
         }
         record
     }
@@ -148,12 +150,14 @@ impl Scene {
             ray
         };
 
-        let indices = self.intersection_accel.intersect_boxes(&ray, false);
+        let index_ranges = self.intersection_accel.intersect_boxes(&ray);
         let mut record = IntersectionRecord::no_intersection();
-        for i in indices {
-            let obj = &self.triangles[i];
-            if obj.intersect(&ray, &mut record) {
-                return record
+        for range in index_ranges {
+            for i in range {
+                let obj = &self.triangles[i];
+                if obj.intersect(&ray, &mut record) {
+                    return record
+                }
             }
         }
         record

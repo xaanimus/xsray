@@ -7,6 +7,7 @@ use self::stdsimd::simd::f32x8;
 
 use std::f32;
 use std::cmp::Ordering;
+use std::ops::Range;
 
 use utilities::math::*;
 
@@ -430,39 +431,27 @@ impl BVHAccelerator {
 impl BVHAccelerator {
     /// Intersect with bounded boxes. returns true if there is an intersection, and
     /// appends intersection_indices with indices of intersected boxes
-    /// If obstruction_only = true, this will return early if it intersects any
-    /// box, not triangle.
+    /// TODO make this function iterative. recursion is expensive
     fn intersect_box_intern(
         &self, ray: &AABBIntersectionRay,
-        obstruction_only: bool, intersection_indices: &mut Vec<usize>
-    ) -> bool {
+        intersection_indices: &mut Vec<Range<usize>>
+    ) {
         use self::BVHAccelerator::{Node, Leaf, Nothing};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray) {
                     let first_intersected =
-                        first.intersect_box_intern(&ray, obstruction_only, intersection_indices);
-                    if obstruction_only && first_intersected {
-                        return true;
-                    }
+                        first.intersect_box_intern(&ray, intersection_indices);
                     let second_intersected =
-                        second.intersect_box_intern(&ray, obstruction_only, intersection_indices);
-                    first_intersected || second_intersected
-                } else {
-                    false
+                        second.intersect_box_intern(&ray, intersection_indices);
                 }
             },
             &Leaf{start, end, ref wrapper} => {
                 if wrapper.intersects_with_bounding_box(ray) {
-                    for i in start..end {
-                        intersection_indices.push(i)
-                    }
-                    true
-                } else {
-                    false
+                    intersection_indices.push(start..end);
                 }
             }
-            &Nothing => false
+            &Nothing => ()
         }
     }
 
@@ -470,11 +459,10 @@ impl BVHAccelerator {
     /// may intersect with the ray. Due to the way th bvh tree is build, the
     /// returned indices will already be sorted, so the caller can iterate through
     /// the objects in a way that benefits from cache locality
-    pub fn intersect_boxes(&self, ray: &RayUnit, obstruction_only: bool) -> Vec<usize> {
-        let mut indices = Vec::<usize>::new();
+    pub fn intersect_boxes(&self, ray: &RayUnit) -> Vec<Range<usize>> {
+        let mut indices = Vec::<Range<usize>>::new();
         let aabb_ray = AABBIntersectionRay::new(ray);
-        self.intersect_box_intern(&aabb_ray, obstruction_only, &mut indices);
+        self.intersect_box_intern(&aabb_ray, &mut indices);
         indices
     }
 }
-
