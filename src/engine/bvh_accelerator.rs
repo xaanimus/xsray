@@ -52,7 +52,7 @@ pub trait HasAABoundingBox {
     //}
 
     #[cfg(not(target_feature = "avx"))]
-    fn intersects_with_bounding_box(&self, _ray: &RayUnit, _inverse_direction: &Vec3) -> bool {
+    fn intersects_with_bounding_box(&self, _ray: &AABBIntersectionRay) -> bool {
         unimplemented!()
         ////TODO might want to look into when an element of inverse_direction = NaN
         //let bb = self.aa_bounding_box_ref();
@@ -86,27 +86,13 @@ pub trait HasAABoundingBox {
     //#[target_feature(enable = "avx")]
     #[cfg(target_feature = "avx")]
     //#[target_feature = "+avx"]
-    fn intersects_with_bounding_box(&self, ray: &RayUnit, inverse_direction: &Vec3) -> bool {
+    fn intersects_with_bounding_box(&self, ray: &AABBIntersectionRay) -> bool {
         //TODO might want to look into when an element of inverse_direction = NaN
         let bb = self.aa_bounding_box_ref();
-        let bb_lower: &[f32; 3] = bb.lower.as_ref();
-        let bb_upper: &[f32; 3] = bb.upper.as_ref();
-        let ray_pos: &[f32; 3] = ray.position.as_ref();
-        let inv_dir: &[f32; 3] = inverse_direction.as_ref();
-
         let bb_vec = unsafe { bb.vec_f32x8() };
-        //TODO preconstruct this vector:
-        let ray_pos_vec = f32x8::new(
-            ray.position.x, ray.position.y, ray.position.z,
-            ray.position.x, ray.position.y, ray.position.z,
-            0.0, 0.0
-        );
 
-        let direction_inv_vec = f32x8::new(
-            inverse_direction.x, inverse_direction.y, inverse_direction.z,
-            inverse_direction.x, inverse_direction.y, inverse_direction.z,
-            0.0, 0.0
-        );
+        let ray_pos_vec = ray.position;
+        let direction_inv_vec = ray.direction_inverse;
 
         let t_values = (bb_vec - ray_pos_vec) * direction_inv_vec;
 
@@ -137,9 +123,9 @@ pub trait HasAABoundingBox {
             xm.extract(0)
         };
 
-        if !(ray.t_range.start <= t_far_min) ||
+        if !(ray.t_start <= t_far_min) ||
 
-            !(t_near_max <= ray.t_range.end) ||
+            !(t_near_max <= ray.t_end) ||
             !(t_near_max <= t_far_min)
         {
             return false
@@ -167,6 +153,52 @@ fn test_simd() {
     let mut arr = [0.0f32; 4];
     a.store(&mut arr[..], 0);
     println!("{:?}", arr);
+}
+
+#[cfg(target_feature = "avx")]
+struct AABBIntersectionRay {
+    pub position: f32x8,
+    pub direction_inverse: f32x8,
+    pub t_start: f32,
+    pub t_end: f32
+}
+
+#[cfg(not(target_feature = "avx"))]
+struct AABBIntersectionRay {
+    pub position: Vec3,
+    pub direction_inverse: Vec3,
+    pub t_start: f32,
+    pub t_end: f32
+}
+
+impl AABBIntersectionRay {
+    #[cfg(target_feature = "avx")]
+    fn new(ray: &RayUnit) -> AABBIntersectionRay {
+        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
+        AABBIntersectionRay {
+            position: f32x8::new(
+                ray.position.x, ray.position.y, ray.position.z,
+                ray.position.x, ray.position.y, ray.position.z,
+                0.0, 0.0),
+            direction_inverse: f32x8::new(
+                inverse_direction.x, inverse_direction.y, inverse_direction.z,
+                inverse_direction.x, inverse_direction.y, inverse_direction.z,
+                0.0, 0.0),
+            t_start: ray.t_range.start,
+            t_end: ray.t_range.end
+        }
+    }
+
+    #[cfg(not(target_feature = "avx"))]
+    fn new(ray: &RayUnit) -> AABBIntersectionRay {
+        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
+        AABBIntersectionRay {
+            position: ray.position,
+            direction_inverse: inverse_direction,
+            t_start: ray.t_range.start,
+            t_end: ray.t_range.end
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -401,29 +433,27 @@ impl BVHAccelerator {
     /// If obstruction_only = true, this will return early if it intersects any
     /// box, not triangle.
     fn intersect_box_intern(
-        &self, ray: &RayUnit, inverse_direction: &Vec3,
+        &self, ray: &AABBIntersectionRay,
         obstruction_only: bool, intersection_indices: &mut Vec<usize>
     ) -> bool {
         use self::BVHAccelerator::{Node, Leaf, Nothing};
         match self {
             &Node{ref first, ref second, ref wrapper} => {
-                if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
+                if wrapper.intersects_with_bounding_box(ray) {
                     let first_intersected =
-                        first.intersect_box_intern(&ray, inverse_direction,
-                                                   obstruction_only, intersection_indices);
+                        first.intersect_box_intern(&ray, obstruction_only, intersection_indices);
                     if obstruction_only && first_intersected {
                         return true;
                     }
                     let second_intersected =
-                        second.intersect_box_intern(&ray, inverse_direction,
-                                                    obstruction_only, intersection_indices);
+                        second.intersect_box_intern(&ray, obstruction_only, intersection_indices);
                     first_intersected || second_intersected
                 } else {
                     false
                 }
             },
             &Leaf{start, end, ref wrapper} => {
-                if wrapper.intersects_with_bounding_box(ray, inverse_direction) {
+                if wrapper.intersects_with_bounding_box(ray) {
                     for i in start..end {
                         intersection_indices.push(i)
                     }
@@ -442,8 +472,8 @@ impl BVHAccelerator {
     /// the objects in a way that benefits from cache locality
     pub fn intersect_boxes(&self, ray: &RayUnit, obstruction_only: bool) -> Vec<usize> {
         let mut indices = Vec::<usize>::new();
-        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
-        self.intersect_box_intern(ray, &inverse_direction, obstruction_only, &mut indices);
+        let aabb_ray = AABBIntersectionRay::new(ray);
+        self.intersect_box_intern(&aabb_ray, obstruction_only, &mut indices);
         indices
     }
 }

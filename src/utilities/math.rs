@@ -108,7 +108,6 @@ pub struct RayBase<T> {
     pub t_range: Range<f32>,
 }
 
-
 impl<T> RayBase<T> {
     pub fn new(position: Vec3, direction: T) -> RayBase<T> {
         RayBase {
