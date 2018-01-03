@@ -1,4 +1,5 @@
 #![feature(target_feature)]
+#![feature(cfg_target_feature)]
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_yaml;
@@ -6,6 +7,7 @@ extern crate regex;
 
 #[macro_use]
 mod utilities;
+#[target_feature = "+avx"]
 mod engine;
 
 use std::env;

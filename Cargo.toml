@@ -10,6 +10,8 @@ authors = ["Serge-Olivier Amega"]
   obj-rs = "0.4.17"
   rand = "0.3"
   regex = "0.2"
+  stdsimd = "0.0.3"
+  #simd = { version = "0.2.1"}
 
   #serde
   serde = "1.0"
