@@ -8,6 +8,7 @@ use self::stdsimd::simd::f32x8;
 use std::f32;
 use std::cmp::Ordering;
 use std::ops::Range;
+use std::collections::VecDeque;
 
 use utilities::math::*;
 
@@ -137,25 +138,6 @@ pub trait HasAABoundingBox {
 
 }
 
-#[test]
-#[cfg(target_feature = "avx")]
-fn test_simd() {
-    println!("avx test");
-    let t_values = f32x8::new(10.0, 9.0, 8.0, 4.0, 0.0, 0.0, 0.0, 0.0);
-
-    let (a, b) = unsafe {
-        let x = vendor::_mm256_extractf128_ps(t_values, 0);
-        let x1 = vendor::_mm_shuffle_ps(x, x, 0b_00_00_00_01);
-        let x2 = vendor::_mm_shuffle_ps(x, x, 0b_00_00_00_10);
-        let xm = vendor::_mm_min_ss( vendor::_mm_min_ss(x, x1), x2 );
-        (xm, xm)
-    };
-
-    let mut arr = [0.0f32; 4];
-    a.store(&mut arr[..], 0);
-    println!("{:?}", arr);
-}
-
 #[cfg(target_feature = "avx")]
 struct AABBIntersectionRay {
     pub position: f32x8,
@@ -206,22 +188,6 @@ impl AABBIntersectionRay {
 pub struct AABoundingBox {
     pub lower: Vec3,
     pub upper: Vec3
-}
-
-macro_rules! print_mem {
-    ($type:ty, $fn:ident) => {
-        {
-            use std;
-            println!("{} {} = {}", stringify!($fn), stringify!($type), std::mem::$fn::<$type>());
-        }
-    }
-}
-
-#[test]
-fn bounding_box_info() {
-    print_mem!(AABoundingBox, align_of);
-    print_mem!(AABoundingBox, size_of);
-    print_mem!(Vec3, size_of);
 }
 
 impl AABoundingBox {
@@ -360,7 +326,7 @@ impl BVHAccelerator {
 
         if objects.len() == 0 {
             return BVHAccelerator::Nothing
-        } else if objects.len() <= 4 {
+        } else if objects.len() <= 1 {
             return BVHAccelerator::Leaf{
                 start: start_index,
                 end: start_index + objects.len(),
@@ -406,7 +372,7 @@ impl BVHAccelerator {
         let splitter = SAHSubdivideGuessSplitter {
             number_of_subdivs: 50,
             sah_consts: SAHConstants {
-                cost_traversal: 2.0,
+                cost_traversal: 3.0,
                 cost_triangle_intersection: 1.0
             }
         };
@@ -429,7 +395,7 @@ impl BVHAccelerator {
 }
 
 impl BVHAccelerator {
-    /// Intersect with bounded boxes. returns true if there is an intersection, and
+    /// Intersect with bounded boxes.
     /// appends intersection_indices with indices of intersected boxes
     /// TODO make this function iterative. recursion is expensive
     fn intersect_box_intern(
@@ -437,21 +403,22 @@ impl BVHAccelerator {
         intersection_indices: &mut Vec<Range<usize>>
     ) {
         use self::BVHAccelerator::{Node, Leaf, Nothing};
-        match self {
-            &Node{ref first, ref second, ref wrapper} => {
-                if wrapper.intersects_with_bounding_box(ray) {
-                    let first_intersected =
-                        first.intersect_box_intern(&ray, intersection_indices);
-                    let second_intersected =
-                        second.intersect_box_intern(&ray, intersection_indices);
-                }
-            },
-            &Leaf{start, end, ref wrapper} => {
-                if wrapper.intersects_with_bounding_box(ray) {
+        let mut nodes_to_visit = VecDeque::<&BVHAccelerator>::new();
+        nodes_to_visit.push_front(self);
+
+        while let Some(node) = nodes_to_visit.pop_front() {
+            match node {
+                &Node{ref first, ref second, ref wrapper}
+                if wrapper.intersects_with_bounding_box(ray) => {
+                    nodes_to_visit.push_front(&second);
+                    nodes_to_visit.push_front(&first);
+                },
+                &Leaf{start, end, ref wrapper}
+                if wrapper.intersects_with_bounding_box(ray) => {
                     intersection_indices.push(start..end);
-                }
+                },
+                _ => ()
             }
-            &Nothing => ()
         }
     }
 

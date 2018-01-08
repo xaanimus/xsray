@@ -125,16 +125,31 @@ impl Scene {
         }
     }
 
-    pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+    fn intersect_intern(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
         let index_ranges = self.intersection_accel.intersect_boxes(ray);
         let mut record = IntersectionRecord::no_intersection();
+
+        #[cfg(target_feature = "avx")]
+        let simd_ray = SimdRay::new(ray);
+
         for range in index_ranges {
             for i in range {
                 let obj = &self.triangles[i];
-                obj.intersect(ray, &mut record);
+                let intersected = if cfg!(target_feature = "avx") {
+                    unsafe { obj.intersect_obstruct_simd(&simd_ray, &mut record, false) }
+                } else {
+                    obj.intersect(ray, &mut record)
+                };
+                if obstruction_only && intersected {
+                    return record;
+                }
             }
         }
         record
+    }
+
+    pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+        self.intersect_intern(ray, false)
     }
 
     ///detects an intersection between origin and destination. Not necessarily
@@ -143,24 +158,12 @@ impl Scene {
     pub fn intersect_for_obstruction(
         &self, origin: Vec3, destination: Vec3
     ) -> IntersectionRecord {
-        //TODO optimize for obstruction detection
         let ray = {
             let mut ray = RayBase::new_epsilon_offset(origin, (destination - origin).unit());
             ray.t_range.end = (destination - origin).magnitude();
             ray
         };
-
-        let index_ranges = self.intersection_accel.intersect_boxes(&ray);
-        let mut record = IntersectionRecord::no_intersection();
-        for range in index_ranges {
-            for i in range {
-                let obj = &self.triangles[i];
-                if obj.intersect(&ray, &mut record) {
-                    return record
-                }
-            }
-        }
-        record
+        self.intersect_intern(&ray, true)
     }
 }
 
