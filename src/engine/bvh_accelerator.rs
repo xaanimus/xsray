@@ -372,7 +372,7 @@ impl BVHAccelerator {
         let splitter = SAHSubdivideGuessSplitter {
             number_of_subdivs: 50,
             sah_consts: SAHConstants {
-                cost_traversal: 3.0,
+                cost_traversal: 2.0,
                 cost_triangle_intersection: 1.0
             }
         };
