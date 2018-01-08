@@ -1,5 +1,7 @@
 extern crate stdsimd;
 
+use std::f32;
+
 use utilities::math::*;
 
 use self::stdsimd::vendor;
@@ -155,10 +157,21 @@ pub struct AABoundingBox {
 }
 
 impl AABoundingBox {
-    fn new() -> AABoundingBox {
+    pub fn new() -> AABoundingBox {
         AABoundingBox {
             lower: Vec3::zero(),
             upper: Vec3::zero()
+        }
+    }
+
+    pub fn empty() -> AABoundingBox {
+        AABoundingBox {
+            lower: Vec3::new(f32::INFINITY,
+                             f32::INFINITY,
+                             f32::INFINITY),
+            upper: Vec3::new(-f32::INFINITY,
+                             -f32::INFINITY,
+                             -f32::INFINITY)
         }
     }
 
@@ -180,7 +193,7 @@ impl HasAABoundingBox for AABoundingBox {
 }
 
 pub fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
-    let mut full_bounding_box = AABoundingBox::new();
+    let mut full_bounding_box = AABoundingBox::empty();
     for ref elem in elems {
         let bbox: &AABoundingBox = (*elem).aa_bounding_box_ref();
         full_bounding_box.lower = full_bounding_box.lower.min_elem_wise(&bbox.lower);

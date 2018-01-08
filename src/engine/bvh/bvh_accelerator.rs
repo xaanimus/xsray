@@ -14,38 +14,52 @@ use std::collections::VecDeque;
 
 use utilities::math::*;
 
+/// Bounded Volume Hierarchy Accelerator
+/// Each subtree can be represented by a slice of BVHAcceleratorNode objects
+/// the first element in the slice is the root node, with the bounding box for
+/// the subtree. It also contains the number of elements in this tree
 #[derive(Debug)]
-pub enum BVHAccelerator {
-    Node{first: Box<BVHAccelerator>, second: Box<BVHAccelerator>, wrapper: AABoundingBox},
+pub struct BVHAccelerator {
+    nodes: Vec<BVHTree>
+}
+
+#[derive(Debug, Clone)]
+//TODO try keeping Nodes and Leaves in different Vecs for better space efficiency
+enum BVHTree {
+    Node{number_of_nodes: usize, wrapper: AABoundingBox},
     Leaf{start: usize, end: usize, wrapper: AABoundingBox},
-    Nothing
+}
+
+fn ensure_idx_exists<T: Clone>(vector: &mut Vec<T>, idx: usize, default: T) {
+    while idx >= vector.len() {
+        vector.push(default.clone())
+    }
 }
 
 impl BVHAccelerator {
     pub fn new<T: HasAABoundingBox + HasSurfaceArea>(objects: &mut [T]) -> BVHAccelerator {
         let start_time = time::precise_time_s();
-        let accelerator = BVHAccelerator::build_tree(objects, 0);
+
+        let mut tree = Vec::<BVHTree>::new();
+        let num_nodes = BVHAccelerator::build_tree(&mut tree, 0, objects, 0);
+
         let end_time = time::precise_time_s();
         println!("bvh build time: {}s", end_time - start_time);
-        accelerator
+
+        BVHAccelerator {
+            nodes: tree,
+        }
     }
 
-    ///This will mutate objects, so pass in a clone if you don't
-    ///want that to happen
-    /// start_index is what index objects[0] is in the largest enclosing objects array
+    /// returns number of nodes in built tree
     fn build_tree<T: HasAABoundingBox + HasSurfaceArea> (
+        tree_nodes: &mut Vec<BVHTree>, tree_index: usize,
         objects: &mut [T], start_index: usize
-    ) -> BVHAccelerator {
+    ) -> usize {
         let objects_bbox = get_aa_bounding_box(objects);
 
         if objects.len() == 0 {
-            return BVHAccelerator::Nothing
-        } else if objects.len() <= 1 {
-            return BVHAccelerator::Leaf{
-                start: start_index,
-                end: start_index + objects.len(),
-                wrapper: objects_bbox
-            };
+            return 0;
         }
 
         //find widest axis
@@ -82,30 +96,87 @@ impl BVHAccelerator {
             })
         };
 
-        //let splitter = MedianIndexSplitter;
-        let splitter = SAHSubdivideGuessSplitter {
-            number_of_subdivs: 50,
-            sah_consts: SAHConstants {
-                cost_traversal: 2.0,
-                cost_triangle_intersection: 1.0
-            }
-        };
+        let splitter = MedianIndexSplitter;
+        //let splitter = SAHSubdivideGuessSplitter {
+        //    number_of_subdivs: 50,
+        //    sah_consts: SAHConstants {
+        //        cost_traversal: 2.0,
+        //        cost_triangle_intersection: 1.0
+        //    }
+        //};
         let m = splitter.get_spliting_index(objects);
+
+        ensure_idx_exists(tree_nodes, tree_index, BVHTree::Node {
+            number_of_nodes: 1,
+            wrapper: AABoundingBox::new()
+        });
+
         if m == 0 {
-            BVHAccelerator::Leaf {
+            tree_nodes[tree_index] = BVHTree::Leaf {
                 start: start_index,
                 end: start_index + objects.len(),
                 wrapper: objects_bbox
-            }
+            };
+            return 1;
         } else {
             let (left_objects, right_objects) = objects.split_at_mut(m);
-            BVHAccelerator::Node {
-                first: Box::new(BVHAccelerator::build_tree(left_objects, start_index)),
-                second: Box::new(BVHAccelerator::build_tree(right_objects, start_index + m)),
+            //left sub tree first
+            let num_nodes_in_left =
+                BVHAccelerator::build_tree(tree_nodes, tree_index + 1, left_objects, start_index);
+            //right sub tree
+            let num_nodes_in_right =
+                BVHAccelerator::build_tree(tree_nodes, tree_index + 1 + num_nodes_in_left,
+                                           right_objects, start_index + m);
+            let num_nodes = 1 + num_nodes_in_right + num_nodes_in_left;
+            tree_nodes[tree_index] = BVHTree::Node {
+                number_of_nodes: num_nodes_in_left + num_nodes_in_right + 1,
                 wrapper: objects_bbox
-            }
+            };
+            return num_nodes;
         }
     }
+}
+
+#[test]
+fn test_bvh() {
+    #[derive(Clone)]
+    struct AABBArea {
+        aabb: AABoundingBox,
+        area: f32
+    }
+    impl HasAABoundingBox for AABBArea {
+        fn aa_bounding_box_ref(&self) -> &AABoundingBox { &self.aabb }
+    }
+    impl HasSurfaceArea for AABBArea {
+        fn surface_area(&self) -> f32 { self.area }
+    }
+
+    let aabbobjs = vec![
+        AABBArea {
+            aabb: AABoundingBox {
+                lower: Vec3::new(0.0, 0.0, 0.0),
+                upper: Vec3::new(1.0, 1.0, 1.0)
+            },
+            area: 1.0
+        },
+        AABBArea {
+            aabb: AABoundingBox {
+                lower: Vec3::new(1.0, 0.0, 0.0),
+                upper: Vec3::new(2.0, 1.0, 1.0)
+            },
+            area: 1.0
+        },
+        AABBArea {
+            aabb: AABoundingBox {
+                lower: Vec3::new(2.0, 0.0, 0.0),
+                upper: Vec3::new(3.0, 1.0, 1.0)
+            },
+            area: 1.0
+        },
+    ];
+
+    let accelerator = BVHAccelerator::new(aabbobjs.clone().as_mut_slice());
+    println!("{:#?}", accelerator);
 }
 
 impl BVHAccelerator {
@@ -116,22 +187,25 @@ impl BVHAccelerator {
         &self, ray: &AABBIntersectionRay,
         intersection_indices: &mut Vec<Range<usize>>
     ) {
-        use self::BVHAccelerator::{Node, Leaf, Nothing};
-        let mut nodes_to_visit = VecDeque::<&BVHAccelerator>::new();
-        nodes_to_visit.push_front(self);
-
-        while let Some(node) = nodes_to_visit.pop_front() {
+        use self::BVHTree::*;
+        let mut i_node = 0;
+        while i_node < self.nodes.len() {
+            let node: &BVHTree = &self.nodes[i_node];
             match node {
-                &Node{ref first, ref second, ref wrapper}
-                if wrapper.intersects_with_bounding_box(ray) => {
-                    nodes_to_visit.push_front(&second);
-                    nodes_to_visit.push_front(&first);
+                &Node {number_of_nodes, ref wrapper} => {
+                    if wrapper.intersects_with_bounding_box(ray) {
+                        i_node += 1;
+                    } else {
+                        //skip current subtree
+                        i_node += number_of_nodes;
+                    }
                 },
-                &Leaf{start, end, ref wrapper}
-                if wrapper.intersects_with_bounding_box(ray) => {
-                    intersection_indices.push(start..end);
-                },
-                _ => ()
+                &Leaf {start, end, ref wrapper} => {
+                    if wrapper.intersects_with_bounding_box(ray) {
+                        intersection_indices.push(start..end);
+                    }
+                    i_node += 1;
+                }
             }
         }
     }
