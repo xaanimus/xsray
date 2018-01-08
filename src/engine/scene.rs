@@ -12,7 +12,7 @@ use super::camera::*;
 use super::intersectable::*;
 use super::scene_builder::{SceneBuilder, SceneSpec};
 use super::shader::{Shader};
-use super::bvh_accelerator::*;
+use super::bvh::*;
 
 use std::rc::Rc;
 use std::collections::HashMap;

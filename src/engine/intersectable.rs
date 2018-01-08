@@ -2,7 +2,7 @@
 extern crate stdsimd;
 
 use super::shader::*;
-use super::bvh_accelerator::*;
+use super::bvh::*;
 use utilities::math::*;
 
 use std::rc::Rc;

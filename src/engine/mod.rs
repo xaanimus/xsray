@@ -3,7 +3,8 @@ use super::utilities::math;
 use super::utilities::color;
 
 mod intersectable;
-mod bvh_accelerator;
+mod bvh;
+
 pub mod camera;
 
 pub mod scene;
