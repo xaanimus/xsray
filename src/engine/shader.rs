@@ -37,13 +37,8 @@ impl_deserialize!(CodableWrapper<Rc<Shader>>, |deserializer| {
     let shader_spec = DeserializableShaderSpec::deserialize(deserializer)?;
     let shader_ptr: Rc<Shader> = match shader_spec {
         Diffuse {color} => Rc::new(DiffuseShader::new(color.get())),
-        Microfacet { color, ior, roughness} => Rc::new(
-            MicrofacetReflectiveShader {
-                index_of_refraction: ior,
-                roughness: roughness,
-                color: color.get()
-            }
-        )
+        Microfacet { color, ior, roughness} =>
+            Rc::new(MicrofacetReflectiveShader::new(ior, roughness, color.get()))
     };
     Ok(CodableWrapper(shader_ptr))
 });
@@ -117,14 +112,25 @@ impl Shader for DiffuseShader {
 pub struct MicrofacetReflectiveShader {
     index_of_refraction: f32,
     roughness: f32,
-    color: Color3
+    color: Color3,
+    warper: GGXNormalHalfVectorWarper
+}
+
+impl MicrofacetReflectiveShader {
+    fn new(index_of_refraction: f32, roughness: f32, color: Color3) -> MicrofacetReflectiveShader {
+        MicrofacetReflectiveShader {
+            index_of_refraction: index_of_refraction,
+            roughness: roughness,
+            color: color,
+            warper: GGXNormalHalfVectorWarper {
+                alpha: roughness
+            }
+        }
+    }
 }
 
 impl Shader for MicrofacetReflectiveShader {
     fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
-        //let sample = UniformHemisphereWarper.sample();
-        //transform_into(normal, &sample)
-
         let half_vector = transform_into(
             normal, &GGXNormalHalfVectorWarper { alpha: self.roughness }.sample()
         );
@@ -134,7 +140,6 @@ impl Shader for MicrofacetReflectiveShader {
 
     fn probability_of_sample(&self, normal: &UnitVec3,
                              light_directions: &LightDirectionPair) -> f32 {
-        //UniformHemisphereWarper.pdf(light_directions.incoming.value())
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
         distribution_ggx(&half, normal, self.roughness) * normal.value().dot(*half.value())
     }
@@ -166,15 +171,6 @@ fn reflection(light_outgoing: &UnitVec3, normal: &UnitVec3) -> UnitVec3 {
     let n = *normal.value();
     { -wo + n * (2.0 * wo.dot(n)) }.unit()
 }
-
-// TODO replace with probability::distribution_ggx
-//fn distribution_ggx(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
-//    let a2 = alpha.powi(2);
-//    let n = *normal.value();
-//    let m = *half_vector.value();
-//    let denom = PI * { n.dot(m).powi(2) * (a2 - 1.0) + 1.0 }.powi(2);
-//    a2 / denom
-//}
 
 fn geometry_neumann(
     light_directions: &LightDirectionPair,
