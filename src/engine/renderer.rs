@@ -25,7 +25,6 @@ fn convert_float_to_char_pixel(from: f32) -> u8 {
 pub struct RenderSettings {
     pub resolution_width: i32,
     pub resolution_height: i32,
-    pub exposure: f32,
 }
 
 impl RenderSettings {
@@ -56,17 +55,29 @@ impl_deserialize!(CodableWrapper<Box<Integrator>>, |deserializer| {
 
 #[derive(Debug, Deserialize)]
 struct PostProcess {
+    exposure: f32,
     gamma: f32
 }
 
 impl PostProcess {
     fn apply(&self, buffer: &mut Float32Image) {
         for pixel in buffer.pixels_mut() {
-            *pixel = pixel.map(|value| gamma_correct(value, self.gamma))
+            *pixel = pixel.map(|value| {
+                let pre_gamma = value * self.exposure;
+                gamma_correct(pre_gamma, self.gamma)
+            })
         }
     }
 }
 
+impl Default for PostProcess {
+    fn default() -> Self {
+        PostProcess {
+            exposure: 1.0,
+            gamma: 2.2
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -99,9 +110,7 @@ impl Config {
             settings: settings,
             scene: scene,
             integrator: integrator.into(),
-            post_process: PostProcess {
-                gamma: 2.2
-            }
+            post_process: PostProcess::default()
         }
     }
 
@@ -143,10 +152,6 @@ impl Config {
     pub fn render_point(&self, u: f32, v: f32) -> Color3 {
         self.integrator.get_ref()
             .shade_camera_point(&self.scene, u, v, &self.settings.uv_pixel_info())
-    }
-
-    pub fn process_color(&self, color: Color3) -> Color3 {
-        color * self.settings.exposure
     }
 }
 
