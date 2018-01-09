@@ -1,10 +1,10 @@
 ---
 post_process:
     gamma: 2.2
+    exposure: 1.0
 settings:
     resolution_width: 400
     resolution_height: 400
-    exposure: 1.0
 integrator:
     kind: PathTracer
     max_bounces: 4
