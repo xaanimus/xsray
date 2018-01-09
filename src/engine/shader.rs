@@ -1,12 +1,13 @@
 extern crate serde;
 use self::serde::de::Error;
 use utilities::codable::*;
+use utilities::math::*;
 
 use super::intersectable::IntersectionRecord;
 use super::scene::{Scene};
-use super::math::*;
 use super::color::*;
 use super::probability::*;
+
 use std::fmt::{Debug, Formatter};
 use std::fmt;
 use std::f32;
@@ -80,14 +81,14 @@ impl DiffuseShader {
 
 impl Shader for DiffuseShader {
     fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
-        let sample = CosineHemisphereWarper::sample();
+        let sample = CosineHemisphereWarper.sample();
         transform_into(normal, &sample)
     }
 
     fn probability_of_sample(&self, normal: &UnitVec3,
                              light_directions: &LightDirectionPair) -> f32 {
         let sample = transform_from(normal, light_directions.incoming.value());
-        CosineHemisphereWarper::pdf(sample.value())
+        CosineHemisphereWarper.pdf(sample.value())
     }
 
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
@@ -120,15 +121,22 @@ pub struct MicrofacetReflectiveShader {
 }
 
 impl Shader for MicrofacetReflectiveShader {
-    fn sample_bounce(&self, normal: &UnitVec3, _outgoing_light_direction: &UnitVec3) -> UnitVec3 {
-        let sample = UniformHemisphereWarper::sample();
-        transform_into(normal, &sample)
+    fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
+        //let sample = UniformHemisphereWarper.sample();
+        //transform_into(normal, &sample)
+
+        let half_vector = transform_into(
+            normal, &GGXNormalHalfVectorWarper { alpha: self.roughness }.sample()
+        );
+        let incoming_light_direction = reflection(outgoing_light_direction, &half_vector);
+        incoming_light_direction
     }
 
-    fn probability_of_sample(&self, _normal: &UnitVec3,
+    fn probability_of_sample(&self, normal: &UnitVec3,
                              light_directions: &LightDirectionPair) -> f32 {
-        //uniform
-        UniformHemisphereWarper::pdf(light_directions.incoming.value())
+        //UniformHemisphereWarper.pdf(light_directions.incoming.value())
+        let half = half_vector(light_directions.incoming, light_directions.outgoing);
+        distribution_ggx(&half, normal, self.roughness) * normal.value().dot(*half.value())
     }
 
     fn brdf_cosine_term(
@@ -138,7 +146,6 @@ impl Shader for MicrofacetReflectiveShader {
         let ior = self.index_of_refraction;
         let f0 = fresnel_normal_reflectance(ior);
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
-        //this is broken. fix fresnel? and sample according to ggx
         let num = fresnel_term(light_directions.outgoing, &half, f0) *
             distribution_ggx(&half, normal, alpha) *
             geometry_neumann(light_directions, &half, normal);
@@ -147,8 +154,6 @@ impl Shader for MicrofacetReflectiveShader {
             light_directions.outgoing.value().dot(*normal.value()).abs() * 4.0;
         self.color * num * normal.value().dot(*light_directions.incoming.value())
             / denom
-        //self.color / PI * num / denom
-        //    * normal.value().dot(*light_directions.incoming.value()) //cos term
     }
 }
 
@@ -156,13 +161,20 @@ fn half_vector(a: &UnitVec3, b: &UnitVec3) -> UnitVec3 {
     (a.value() + b.value()).unit()
 }
 
-fn distribution_ggx(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
-    let a2 = alpha.powi(2);
+fn reflection(light_outgoing: &UnitVec3, normal: &UnitVec3) -> UnitVec3 {
+    let wo = *light_outgoing.value();
     let n = *normal.value();
-    let m = *half_vector.value();
-    let denom = PI * { n.dot(m).powi(2) * (a2 - 1.0) + 1.0 }.powi(2);
-    a2 / denom
+    { -wo + n * (2.0 * wo.dot(n)) }.unit()
 }
+
+// TODO replace with probability::distribution_ggx
+//fn distribution_ggx(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
+//    let a2 = alpha.powi(2);
+//    let n = *normal.value();
+//    let m = *half_vector.value();
+//    let denom = PI * { n.dot(m).powi(2) * (a2 - 1.0) + 1.0 }.powi(2);
+//    a2 / denom
+//}
 
 fn geometry_neumann(
     light_directions: &LightDirectionPair,

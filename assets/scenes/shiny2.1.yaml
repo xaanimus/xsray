@@ -1,3 +1,4 @@
+
 ---
 post_process:
     gamma: 2.2
@@ -8,14 +9,15 @@ settings:
 integrator:
     kind: PathTracer
     max_bounces: 4
-    number_of_samples: 8
+    number_of_samples: 32
+
 scene:
     background_color: [0, 0, 0.1]
     camera:
-        position: [5, 2.5, -4.0]
-        direction: [-1, 0, 1]
+        position: [5, 2.5, 3.0]
+        direction: [-1, 0, -0.8]
         up: [0, 1, 0]
-        plane_distance: 7
+        plane_distance: 13
         plane_width: 15 
         plane_height: 15
     shaders:
@@ -25,7 +27,7 @@ scene:
         shiny:
             kind: Microfacet
             color: [1.0, 1.0, 1.0]
-            ior: 2.0
+            ior: 4.0
             roughness: 0.001
     meshes:
         - src: './../models/rock.obj'
@@ -36,4 +38,3 @@ scene:
     lights:
         - position: [0, 3.0, 1.5]
           intensity: 100.0
-
