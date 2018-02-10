@@ -2,8 +2,9 @@
 a cool rust ray tracer
 
 # TODO
-- [ ] Fix Fresnel
 - [ ] Object transform
+- [ ] Refraction/BSDF
+- [ ] Bokeh
 - [ ] Handle Objs more robustly (accept non triangulated objs, handle normals better)
 - [ ] Emissive surfaces
 - [ ] Microfacet model BSDF rendering

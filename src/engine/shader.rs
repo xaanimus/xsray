@@ -51,6 +51,8 @@ pub trait Shader {
     fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3;
     fn probability_of_sample(&self, normal: &UnitVec3,
                              light_directions: &LightDirectionPair) -> f32;
+    ///Returns brdf * (n dot w_incoming).
+    ///Ensures that all components of Color3 are positive
     fn brdf_cosine_term(
         &self, normal: &UnitVec3, light_directions: &LightDirectionPair
     ) -> Color3;
@@ -103,9 +105,13 @@ impl Shader for DiffuseShader {
     fn brdf_cosine_term(
         &self, normal: &UnitVec3, light_directions: &LightDirectionPair
     ) -> Color3 {
+        if light_directions.outgoing.value().dot(*normal.value()) < 0.0 {
+            return Color3::zero()
+        }
+
         let brdf = self.color / PI;
         let cosine_term = normal.value().dot(*light_directions.incoming.value()); //TODO figure out situation with Into
-        brdf * cosine_term
+        (brdf * cosine_term).max_elem_wise(&Color3::zero())
     }
 }
 
@@ -157,8 +163,9 @@ impl Shader for MicrofacetReflectiveShader {
         let denom =
             light_directions.incoming.value().dot(*normal.value()).abs() *
             light_directions.outgoing.value().dot(*normal.value()).abs() * 4.0;
-        self.color * num * normal.value().dot(*light_directions.incoming.value())
-            / denom
+        let result = self.color * num * normal.value().dot(*light_directions.incoming.value())
+            / denom;
+        result.max_elem_wise(&Color3::zero())
     }
 }
 

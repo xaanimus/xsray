@@ -1,14 +1,14 @@
 ---
 post_process:
   gamma: 2.2
+  exposure: 0.3
 settings:
   resolution_width: 400
   resolution_height: 400
-  exposure: 1.0
 integrator:
   kind: PathTracer
-  max_bounces: 4
-  number_of_samples: 8
+  max_bounces: 2 
+  number_of_samples: 4 
 scene:
   background_color: [0, 0, 0]
   camera:
@@ -25,8 +25,8 @@ scene:
     shiny:
       kind: Microfacet
       color: [1.0, 1.0, 1.0]
-      ior: 2.0
-      roughness: 0.0
+      ior: 1.4
+      roughness: 0.1
   meshes:
     #TODO add transform
     - src: './../models/rock.obj'
