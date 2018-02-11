@@ -1,5 +1,7 @@
 #![feature(target_feature)]
 #![feature(cfg_target_feature)]
+#![target_feature(enable = "avx")]
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_yaml;

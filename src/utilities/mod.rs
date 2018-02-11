@@ -1,5 +1,6 @@
 //!Core utilities
 
+pub mod sampler;
 pub mod math;
 pub mod color;
 #[macro_use]
