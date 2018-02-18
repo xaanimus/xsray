@@ -18,6 +18,11 @@ impl SamplerSpec {
             &SamplerSpec::Halton => Box::new(HaltonSampler::new())
         }
     }
+
+    pub fn to_number_sequence(&self, number_of_samples: usize) -> NumberSequenceSampler {
+        NumberSequenceSampler::new_from_sampler(
+            self.to_sampler().as_mut(), number_of_samples)
+    }
 }
 
 //each pixel resets its seed based on the pixel location
@@ -91,4 +96,46 @@ fn halton_sequence(idx: u32, base: u32) -> f32 {
     }
     r
 }
+
+#[derive(Debug, Clone)]
+pub struct NumberSequenceSampler {
+    sequence: Rc<Vec<(f32, f32)>>,
+    idx: usize
+}
+
+impl Sampler for NumberSequenceSampler {
+    fn get_f32(&mut self) -> f32 {
+        self.get_2d_f32().0
+    }
+
+    fn get_2d_f32(&mut self) -> (f32, f32) {
+        self.idx = (self.idx + 1) % self.sequence.len();
+        self.sequence[self.idx]
+    }
+}
+
+impl NumberSequenceSampler {
+    fn reset(&mut self) {
+        self.idx = 0
+    }
+
+    fn new_from_sampler<TSpl: Sampler + ?Sized>(
+        sampler: &mut TSpl, number_of_samples: usize
+    ) -> NumberSequenceSampler {
+        NumberSequenceSampler {
+            sequence: Rc::new((0..number_of_samples)
+                .map(|_| sampler.get_2d_f32())
+                .collect()),
+            idx: 0
+        }
+    }
+
+    fn reset_copy(&self) -> NumberSequenceSampler {
+        NumberSequenceSampler {
+            sequence: self.sequence.clone(),
+            idx: 0
+        }
+    }
+}
+
 

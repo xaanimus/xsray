@@ -13,6 +13,8 @@ use std::fmt;
 use std::f32;
 use std::f32::consts::PI;
 use std::rc::Rc;
+use utilities::sampler::Sampler;
+use utilities::sampler::NumberSequenceSampler;
 
 pub fn default_shader() -> DiffuseShader {
     DiffuseShader {
@@ -48,7 +50,10 @@ pub trait Shader {
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
         Color3::zero()
     }
-    fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3;
+    fn sample_bounce(
+        &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
+        sampler: &mut NumberSequenceSampler
+    ) -> UnitVec3;
     fn probability_of_sample(&self, normal: &UnitVec3,
                              light_directions: &LightDirectionPair) -> f32;
     ///Returns brdf * (n dot w_incoming).
@@ -77,16 +82,6 @@ impl DiffuseShader {
 }
 
 impl Shader for DiffuseShader {
-    fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
-        let sample = CosineHemisphereWarper.sample();
-        transform_into(normal, &sample)
-    }
-
-    fn probability_of_sample(&self, normal: &UnitVec3,
-                             light_directions: &LightDirectionPair) -> f32 {
-        let sample = transform_from(normal, light_directions.incoming.value());
-        CosineHemisphereWarper.pdf(sample.value())
-    }
 
     fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
         scene.lights.iter().fold(Color3::new(0.0, 0.0, 0.0), |acc, light| {
@@ -100,6 +95,20 @@ impl Shader for DiffuseShader {
                     self.color * light.intensity / light_vec.magnitude2() + acc
             }
         })
+    }
+
+    fn sample_bounce(
+        &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
+        sampler: &mut NumberSequenceSampler
+    ) -> UnitVec3 {
+        let sample = CosineHemisphereWarper.sample(sampler);
+        transform_into(normal, &sample)
+    }
+
+    fn probability_of_sample(&self, normal: &UnitVec3,
+                             light_directions: &LightDirectionPair) -> f32 {
+        let sample = transform_from(normal, light_directions.incoming.value());
+        CosineHemisphereWarper.pdf(sample.value())
     }
 
     fn brdf_cosine_term(
@@ -136,9 +145,12 @@ impl MicrofacetReflectiveShader {
 }
 
 impl Shader for MicrofacetReflectiveShader {
-    fn sample_bounce(&self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3) -> UnitVec3 {
+    fn sample_bounce(
+        &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
+        sampler: &mut NumberSequenceSampler
+    ) -> UnitVec3 {
         let half_vector = transform_into(
-            normal, &GGXNormalHalfVectorWarper { alpha: self.roughness }.sample()
+            normal, &GGXNormalHalfVectorWarper { alpha: self.roughness }.sample(sampler)
         );
         let incoming_light_direction = reflection(outgoing_light_direction, &half_vector);
         incoming_light_direction

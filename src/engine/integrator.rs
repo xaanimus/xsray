@@ -18,6 +18,7 @@ use super::shader::*;
 use self::cgmath::Matrix3;
 use self::rand::Rng;
 use utilities::sampler::SamplerSpec;
+use utilities::sampler::NumberSequenceSampler;
 
 #[derive(Deserialize)]
 #[serde(tag = "kind")]
@@ -26,7 +27,8 @@ pub enum IntegratorSpec {
         max_bounces: u32,
         number_of_samples: u32,
         shade_shadow_rays: Option<bool>,
-        sampler: SamplerSpec
+        #[serde(rename = "sampler")]
+        sampler_spec: SamplerSpec
     },
 }
 
@@ -36,7 +38,7 @@ impl IntegratorSpec {
         match *self {
             PathTracer {
                 max_bounces, number_of_samples,
-                shade_shadow_rays, ref sampler
+                shade_shadow_rays, ref sampler_spec
             } => {
                 if shade_shadow_rays == Some(true) {
                     println!("shading shadow rays is not yet implemented.");
@@ -45,20 +47,13 @@ impl IntegratorSpec {
                     max_bounces,
                     number_of_samples,
                     shade_shadow_rays: shade_shadow_rays.unwrap_or(false),
-                    sampler_spec: sampler.clone()
+                    sampler_number_sequence: sampler_spec.to_number_sequence(100),
                 })
             }
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct PathTracerIntegrator {
-    pub max_bounces: u32,
-    pub number_of_samples: u32,
-    pub shade_shadow_rays: bool, //currently shades shadow rays without weights
-    sampler_spec: SamplerSpec
-}
 
 //for now just a point light sampler.
 //in the future should sample emissive surfaces
@@ -100,7 +95,7 @@ pub struct UvPixelInfo {
 }
 
 pub trait Integrator: Debug {
-    fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3;
+    fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3;
     fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32,
                           render_info: &UvPixelInfo) -> Color3;
 }
@@ -179,7 +174,7 @@ fn shade_path_interconnected(path: &Path) {
 ///in Path.intersections. It is not guaranteed that a ray from last intersection
 ///to the light sample is unobstructed
 ///Max bounces is >= 0
-fn trace_path<TSpl: Sampler + ?Sized>(ray: &RayUnit, scene: &Scene, max_bounces: u32, sampler: &mut TSpl) -> Path {
+fn trace_path(ray: &RayUnit, scene: &Scene, max_bounces: u32, sampler: &mut NumberSequenceSampler) -> Path {
     let mut path = Path {
         start_position: ray.position,
         intersections: Vec::new(),
@@ -203,8 +198,10 @@ fn trace_path<TSpl: Sampler + ?Sized>(ray: &RayUnit, scene: &Scene, max_bounces:
 
         path.intersections.push(intersection);
 
-        let new_direction = shader.sample_bounce(&record.normal.unit(),
-                                                 &current_ray.direction.neg());
+        let new_direction = shader.sample_bounce(
+            &record.normal.unit(),
+            &current_ray.direction.neg(),
+            sampler);
         current_ray = RayBase::new_epsilon_offset(record.position, new_direction);
     }
 
@@ -216,7 +213,7 @@ fn trace_path<TSpl: Sampler + ?Sized>(ray: &RayUnit, scene: &Scene, max_bounces:
     path
 }
 
-fn sample_anti_alias_uv<TSpl: Sampler + ?Sized>(
+fn sample_anti_alias_uv<TSpl: Sampler>(
     u:f32, v:f32, pixel_info: &UvPixelInfo,
     sampler: &mut TSpl
 ) -> (f32, f32) {
@@ -227,16 +224,23 @@ fn sample_anti_alias_uv<TSpl: Sampler + ?Sized>(
     (u + offset_u, v + offset_v)
 }
 
+#[derive(Debug, Clone)]
+pub struct PathTracerIntegrator {
+    pub max_bounces: u32,
+    pub number_of_samples: u32,
+    pub shade_shadow_rays: bool, //currently shades shadow rays without weights
+    sampler_number_sequence: NumberSequenceSampler
+}
+
 impl Integrator for PathTracerIntegrator {
-    fn shade_ray(&self, ray: &RayUnit, scene: &Scene) -> Color3 {
+    fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3 {
         let max_bounces = if self.max_bounces == 0 {
             0
         } else {
             rand::random::<u32>() % self.max_bounces
         };
 
-        let path = trace_path(ray, scene, max_bounces,
-                              self.sampler_spec.to_sampler().as_mut());
+        let path = trace_path(ray, scene, max_bounces, sampler);
         let color = shade_path(&path, scene, max_bounces);
         color
     }
@@ -245,12 +249,12 @@ impl Integrator for PathTracerIntegrator {
         &self, scene: &Scene, u: f32, v: f32, pixel_info: &UvPixelInfo
     ) -> Color3 {
         let mut acc = Color3::zero();
+        let mut number_sequence = self.sampler_number_sequence.clone();
         for _ in 0..self.number_of_samples {
             let (anti_alias_u, anti_alias_v) =
-                sample_anti_alias_uv(u, v, pixel_info,
-                    self.sampler_spec.to_sampler().as_mut());
+                sample_anti_alias_uv(u, v, pixel_info, &mut number_sequence);
             let ray = scene.camera.shoot_ray(anti_alias_u, anti_alias_v);
-            acc += self.shade_ray(&ray, scene);
+            acc += self.shade_ray(&ray, scene, &mut number_sequence);
         }
         acc / self.number_of_samples as f32
     }

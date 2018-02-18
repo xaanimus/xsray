@@ -6,15 +6,14 @@ use self::cgmath::Rad;
 use utilities::math::*;
 use std::f32::consts::PI;
 use std::f32;
+use utilities::sampler::Sampler;
 
 pub trait Warper {
     type Output;
 
-    fn sample(&self) -> Self::Output {
-        let input = Vec2 {
-            x: rand::random::<f32>(),
-            y: rand::random::<f32>()
-        };
+    fn sample<Spl: Sampler>(&self, sampler: &mut Spl) -> Self::Output {
+        let (x, y) = sampler.get_2d_f32();
+        let input = Vec2 {x, y};
         self.warp(&input)
     }
 

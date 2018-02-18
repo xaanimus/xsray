@@ -126,9 +126,6 @@ impl Config {
             for block in blocks {
                 for x in block.start_x()..block.end_x() {
                     for y in block.start_y()..block.end_y() {
-                        if (x, y) == (155, 218) {
-                            println!("match");
-                        }
                         let mut pixel = buffer.get_pixel_mut(x,y);
                         let (u, v) = self.settings.pixel_to_uv(x as i32, y as i32);
                         let render_color = self.render_point(u,v);

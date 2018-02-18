@@ -12,5 +12,7 @@ a cool rust ray tracer
 - [ ] Multithreaded
 - [ ] Use UnitVec3 for normals throughout code
   * IntersectionRecord
+- [ ] Multiple importance sampling
+- [ ] Make sure Halton sequence accepts only base > 1
 
 

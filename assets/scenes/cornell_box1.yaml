@@ -7,10 +7,11 @@ settings:
   resolution_height: 400
 integrator:
   kind: PathTracer
-  max_bounces: 8
-  number_of_samples: 64
+  max_bounces: 2
+  number_of_samples: 4
   sampler:
-    kind: Halton
+    kind: Pseudorandom
+    #kind: Halton
 scene:
   background_color: [0, 0, 0]
   camera:
