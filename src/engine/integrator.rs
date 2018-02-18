@@ -47,7 +47,7 @@ impl IntegratorSpec {
                     max_bounces,
                     number_of_samples,
                     shade_shadow_rays: shade_shadow_rays.unwrap_or(false),
-                    sampler_number_sequence: sampler_spec.to_number_sequence(100),
+                    sampler_number_sequence: sampler_spec.to_number_sequence(1000),
                 })
             }
         }

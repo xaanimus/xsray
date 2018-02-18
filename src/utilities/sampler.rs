@@ -3,19 +3,27 @@ extern crate rand;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fmt::Debug;
+pub use self::halton_private_module::*;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "kind")]
 pub enum SamplerSpec {
     Pseudorandom,
-    Halton
+    Halton {
+        base_x: u32,
+        base_y: u32
+    }
 }
 
 impl SamplerSpec {
     pub fn to_sampler(&self) -> Box<Sampler> {
         match self {
             &SamplerSpec::Pseudorandom => Box::new(PseudorandomSampler),
-            &SamplerSpec::Halton => Box::new(HaltonSampler::new())
+            &SamplerSpec::Halton { base_x, base_y } =>
+                Box::new(
+                    HaltonSampler::new(
+                        HaltonBase::new(base_x).unwrap(),
+                        HaltonBase::new(base_y).unwrap()))
         }
     }
 
@@ -57,24 +65,30 @@ impl PseudorandomSampler {
 
 #[derive(Debug)]
 pub struct HaltonSampler {
-    idx: u32
+    idx: u32,
+    base_x: HaltonBase,
+    base_y: HaltonBase
 }
 
 impl Sampler for HaltonSampler {
     fn get_f32(&mut self) -> f32 {
         self.idx += 1;
-        halton_sequence(self.idx, 2)
+        halton_sequence(self.idx, self.base_x)
     }
 
     fn get_2d_f32(&mut self) -> (f32, f32) {
         self.idx += 1;
-        (halton_sequence(self.idx, 2), halton_sequence(self.idx, 3))
+        (halton_sequence(self.idx, self.base_x), halton_sequence(self.idx, self.base_y))
     }
 }
 
 impl HaltonSampler {
-    fn new() -> HaltonSampler {
-        HaltonSampler { idx: 0 }
+    fn new(base_x: HaltonBase, base_y: HaltonBase) -> HaltonSampler {
+        HaltonSampler {
+            idx: 0,
+            base_x,
+            base_y
+        }
     }
 }
 
@@ -83,16 +97,36 @@ thread_local! {
         Rc::new(RefCell::new(PseudorandomSampler));
 }
 
+mod halton_private_module {
+    #[derive(Debug)]
+    pub struct HaltonBaseMustBeGreaterThanOne;
+    #[derive(Debug, Copy, Clone)]
+    pub struct HaltonBase {
+        base: u32
+    }
+    impl HaltonBase {
+        pub fn new(base: u32) -> Result<HaltonBase, HaltonBaseMustBeGreaterThanOne> {
+            if base <= 1 {
+                Err(HaltonBaseMustBeGreaterThanOne)
+            } else {
+                Ok(HaltonBase {base})
+            }
+        }
+
+        pub fn value(&self) -> u32 {self.base}
+    }
+}
+
 // compute halton sequence
 // from https://en.wikipedia.org/wiki/Halton_sequence
-fn halton_sequence(idx: u32, base: u32) -> f32 {
+fn halton_sequence(idx: u32, base: HaltonBase) -> f32 {
     let mut f = 1f32;
     let mut r = 0f32;
     let mut i = idx;
     while i > 0 {
-        f = f / base as f32;
-        r = r + f * ((i % base) as f32);
-        i = i / base; //floor
+        f = f / base.value() as f32;
+        r = r + f * ((i % base.value()) as f32);
+        i = i / base.value(); //floor
     }
     r
 }
