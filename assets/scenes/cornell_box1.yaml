@@ -8,17 +8,17 @@ settings:
 integrator:
   kind: PathTracer
   max_bounces: 5
-  number_of_samples: 32
+  number_of_samples: 8
   sampler:
-    kind: Pseudorandom
-    #kind: Halton
-    #base_x: 2
-    #base_y: 3
+    #kind: Pseudorandom
+    kind: Halton
+    base_x: 2
+    base_y: 3
 scene:
   background_color: [0, 0, 0]
   camera:
-    position: [5, 2.5, -4.0]
-    direction: [-1, 0, 1]
+    position: [5, 2.5, 1.0]
+    direction: [-1, 0, -0.2]
     up: [0, 1, 0]
     plane_distance: 7
     plane_width: 15 
@@ -30,8 +30,8 @@ scene:
     shiny:
       kind: Microfacet
       color: [1.0, 1.0, 1.0]
-      ior: 1.4
-      roughness: 0.1
+      ior: 10.0
+      roughness: 0.01
   meshes:
     #TODO add transform
     - src: './../models/rock.obj'
