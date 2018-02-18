@@ -250,6 +250,8 @@ impl Integrator for PathTracerIntegrator {
     ) -> Color3 {
         let mut acc = Color3::zero();
         let mut number_sequence = self.sampler_number_sequence.clone();
+        let seed = rand::random::<usize>(); //TODO implement seed
+        number_sequence.seed_index(seed);
         for _ in 0..self.number_of_samples {
             let (anti_alias_u, anti_alias_v) =
                 sample_anti_alias_uv(u, v, pixel_info, &mut number_sequence);

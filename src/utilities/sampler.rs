@@ -149,11 +149,15 @@ impl Sampler for NumberSequenceSampler {
 }
 
 impl NumberSequenceSampler {
-    fn reset(&mut self) {
+    pub fn seed_index(&mut self, seed: usize) {
+        self.idx = seed % self.sequence.len()
+    }
+
+    pub fn reset(&mut self) {
         self.idx = 0
     }
 
-    fn new_from_sampler<TSpl: Sampler + ?Sized>(
+    pub fn new_from_sampler<TSpl: Sampler + ?Sized>(
         sampler: &mut TSpl, number_of_samples: usize
     ) -> NumberSequenceSampler {
         NumberSequenceSampler {
@@ -164,7 +168,7 @@ impl NumberSequenceSampler {
         }
     }
 
-    fn reset_copy(&self) -> NumberSequenceSampler {
+    pub fn reset_copy(&self) -> NumberSequenceSampler {
         NumberSequenceSampler {
             sequence: self.sequence.clone(),
             idx: 0

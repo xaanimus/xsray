@@ -8,9 +8,12 @@ settings:
 integrator:
   kind: PathTracer
   max_bounces: 5
-  number_of_samples: 8
+  number_of_samples: 32
   sampler:
     kind: Pseudorandom
+    #kind: Halton
+    #base_x: 2
+    #base_y: 3
 scene:
   background_color: [0, 0, 0]
   camera:
