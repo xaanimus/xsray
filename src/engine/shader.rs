@@ -159,7 +159,7 @@ impl Shader for MicrofacetReflectiveShader {
     fn probability_of_sample(&self, normal: &UnitVec3,
                              light_directions: &LightDirectionPair) -> f32 {
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
-        distribution_ggx(&half, normal, self.roughness) * normal.value().dot(*half.value())
+        ggx_distribution(&half, normal, self.roughness) * normal.value().dot(*half.value()).abs() // 0, .05, 1.2
     }
 
     fn brdf_cosine_term(
@@ -167,14 +167,16 @@ impl Shader for MicrofacetReflectiveShader {
     ) -> Color3 {
         let alpha = self.roughness;
         let ior = self.index_of_refraction;
-        let f0 = fresnel_normal_reflectance(ior);
+        let f0 = fresnel_schlick_at_normal(ior);
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
-        let num = fresnel_term(light_directions.outgoing, &half, f0) *
-            distribution_ggx(&half, normal, alpha) *
-            geometry_neumann(light_directions, &half, normal);
+        let num = fresnel_schlick(light_directions.incoming, &half, f0) *
+            ggx_distribution(&half, normal, alpha) *
+            ggx_geometry(light_directions, &half, normal, alpha);
+
         let denom =
             light_directions.incoming.value().dot(*normal.value()).abs() *
             light_directions.outgoing.value().dot(*normal.value()).abs() * 4.0;
+
         let result = self.color * num * normal.value().dot(*light_directions.incoming.value())
             / denom;
         result.max_elem_wise(&Color3::zero())
@@ -191,6 +193,25 @@ fn reflection(light_outgoing: &UnitVec3, normal: &UnitVec3) -> UnitVec3 {
     { -wo + n * (2.0 * wo.dot(n)) }.unit()
 }
 
+fn ggx_geometry(
+    light_directions: &LightDirectionPair,
+    half_vector: &UnitVec3,
+    normal: &UnitVec3,
+    alpha: f32
+) -> f32 {
+    let a2 = alpha.powi(2);
+    let n = *normal.value();
+    let v = *light_directions.outgoing.value();
+    let m = *half_vector.value();
+    let theta_viewing = v.dot(n).acos();
+
+    let numer = chi_plus(v.dot(m) / v.dot(n)) * 2.0;
+    let denom = 1.0 +
+        (1.0 + a2 * theta_viewing.tan().powi(2)).sqrt();
+
+    numer / denom
+}
+
 fn geometry_neumann(
     light_directions: &LightDirectionPair,
     half_vector: &UnitVec3,
@@ -205,18 +226,20 @@ fn geometry_neumann(
     num / denom
 }
 
-fn fresnel_normal_reflectance(index_of_refraction: f32) -> f32 {
+fn fresnel_schlick_at_normal(index_of_refraction: f32) -> f32 {
     let n = index_of_refraction;
-    ((1.0 - n) / (1.0 + n)).powi(2)
+    ((n - 1.0) / (n + 1.0)).powi(2)
 }
 
-fn fresnel_term(
-    outgoing_light_direction: &UnitVec3,
+fn fresnel_schlick(
+    incoming_light_direction: &UnitVec3,
     half_vector: &UnitVec3,
     normal_reflectance: f32
 ) -> f32 {
     let f0 = normal_reflectance;
-    let w_o = outgoing_light_direction.value();
+    let wi = incoming_light_direction.value();
     let m = half_vector.value();
-    (1.0 - f0) * (1.0 - w_o.dot(*m)).powi(5) + f0
+    f0 + (1.0 - f0) * ((1.0 - wi.dot(*m)).powi(5))
 }
+
+

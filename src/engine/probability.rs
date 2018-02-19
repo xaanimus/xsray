@@ -118,10 +118,11 @@ impl Warper for GGXNormalHalfVectorWarper {
     type Output = Vec3;
 
     fn warp(&self, from: &Vec2) -> Self::Output {
-        let epsilon = from.x;
-        let phi = Rad(from.y);
+        //xi is like a fancy squiggly E
+        let xi = from.x;
+        let phi = Rad(2.0 * PI * from.y);
         let theta = Rad(
-            ( self.alpha * (epsilon / (1.0 - epsilon)).sqrt() ).atan()
+            ( self.alpha * (xi / (1.0 - xi)).sqrt() ).atan()
         );
         let rotation =
             Matrix3::from_angle_y(phi) *
@@ -131,7 +132,7 @@ impl Warper for GGXNormalHalfVectorWarper {
 
     fn pdf(&self, sample: &Self::Output) -> f32 {
         let normal = Vec3::new(0.0, 1.0, 0.0).unit();
-        distribution_ggx(&sample.unit(), &normal, self.alpha) * normal.value().dot(*sample)
+        ggx_distribution(&sample.unit(), &normal, self.alpha) * normal.value().dot(*sample)
     }
 }
 
@@ -170,10 +171,35 @@ pub fn transform_from(normal: &UnitVec3, sample: &Vec3) -> UnitVec3 {
     (rot_matrix * *sample).unit()
 }
 
-pub fn distribution_ggx(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
+pub fn ggx_distribution(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
     let a2 = alpha.powi(2);
     let n = *normal.value();
     let m = *half_vector.value();
     let denom = PI * { n.dot(m).powi(2) * (a2 - 1.0) + 1.0 }.powi(2);
     a2 / denom
 }
+
+//this is broken for some reason. don't know why.
+//pub fn ggx_distribution(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
+//    let a2 = alpha.powi(2);
+//    let n = *normal.value();
+//    let m = *half_vector.value();
+//    let theta = n.dot(m).acos();
+//
+//    let numer = a2 * chi_plus(n.dot(m));
+//    let denom = PI *
+//        n.dot(m).powi(4) *
+//        (a2 + f32::tan(theta).powi(2)).powi(2);
+//
+//    numer / denom //0, .08, 1.2
+//}
+
+//TODO try to do this without branching
+pub fn chi_plus(v: f32) -> f32 {
+    if v < 0.0 {
+        0.0
+    } else {
+        1.0
+    }
+}
+

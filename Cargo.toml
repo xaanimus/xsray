@@ -19,4 +19,6 @@ authors = ["Serge-Olivier Amega"]
   serde_yaml = "0.7"
 
 [profile.release]
+incremental = true
 #debug = true
+

@@ -7,13 +7,13 @@ settings:
   resolution_height: 400
 integrator:
   kind: PathTracer
-  max_bounces: 5
+  max_bounces: 2
   number_of_samples: 8
   sampler:
-    #kind: Pseudorandom
-    kind: Halton
-    base_x: 2
-    base_y: 3
+    kind: Pseudorandom
+    #kind: Halton
+    #base_x: 2
+    #base_y: 3
 scene:
   background_color: [0, 0, 0]
   camera:
@@ -26,19 +26,18 @@ scene:
   shaders:
     blue_diffuse:
       kind: Diffuse
-      color: [0.8, 0.8, 1.0]
+      color: [0.5, 0.5, 0.7]
     shiny:
       kind: Microfacet
       color: [1.0, 1.0, 1.0]
-      ior: 10.0
-      roughness: 0.01
+      ior: 2.0
+      roughness: 0.2
   meshes:
     #TODO add transform
     - src: './../models/rock.obj'
-      #shader: 'blue_diffuse'
       shader: 'shiny'
     - src: './../models/cornell_box/empty_box.obj'
       shader: 'blue_diffuse'
   lights:
     - position: [0, 3.0, 1.5]
-      intensity: 100.0
+      intensity: 400.0
