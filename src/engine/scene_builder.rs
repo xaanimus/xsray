@@ -3,6 +3,7 @@ extern crate obj;
 use utilities::codable::*;
 use utilities::math::*;
 
+use super::meshutils::*;
 use super::scene::*;
 use super::color::*;
 use super::camera::*;
@@ -13,6 +14,7 @@ use std::fs::File;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::error::Error;
+
 
 pub struct SceneError(pub String);
 

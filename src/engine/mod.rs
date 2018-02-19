@@ -4,6 +4,7 @@ use super::utilities::color;
 
 mod intersectable;
 mod bvh;
+mod meshutils;
 
 pub mod camera;
 

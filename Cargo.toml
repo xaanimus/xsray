@@ -20,5 +20,5 @@ authors = ["Serge-Olivier Amega"]
 
 [profile.release]
 incremental = true
-#debug = true
+debug = true
 
