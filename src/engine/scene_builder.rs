@@ -3,6 +3,7 @@ extern crate obj;
 use utilities::codable::*;
 use utilities::math::*;
 
+use super::transformable::*;
 use super::meshutils::*;
 use super::scene::*;
 use super::color::*;
@@ -61,7 +62,8 @@ fn parse_mesh_info(filepath: &str) -> Result<MeshInfo, SceneError> {
 #[derive(Deserialize)]
 pub struct MeshSpec {
     pub src: String,
-    pub shader: String
+    pub shader: String,
+    pub transformations: Option<TransformationSpecList>
 }
 
 #[derive(Deserialize)]
@@ -80,8 +82,12 @@ impl SceneSpec {
             let shader = self.shaders.get(&mesh_spec.shader)
                 .ok_or(SceneError("Shader not found".into()))?;
             let mesh_info = parse_mesh_info(mesh_spec.src.as_str())?;
-            let mesh = MeshObject::new(&mesh_info, &shader.get().clone())
+            let mut mesh = MeshObject::new(&mesh_info, &shader.get().clone())
                 .ok_or(SceneError("MeshObject failed to build.".into()))?;
+            if let Some(transformations) = mesh_spec.transformations.as_ref()
+                .map(transformation_list_to_mat4) {
+                mesh.transform_in_place(&transformations);
+            }
             result_meshes.push(mesh);
         }
         Ok(result_meshes)

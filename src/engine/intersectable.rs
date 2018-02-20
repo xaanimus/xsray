@@ -1,15 +1,24 @@
 
 extern crate stdsimd;
+extern crate cgmath;
 
 use super::shader::*;
 use super::bvh::*;
+use super::transformable::*;
+
 use utilities::math::*;
 
 use std::rc::Rc;
 use std::f32;
 
+use self::cgmath::Transform;
 use self::stdsimd::vendor;
 use self::stdsimd::simd::f32x4;
+
+//TODO this file into
+//intersectable.rs
+//transformable.rs
+//triangle.rs
 
 pub trait Intersectable {
     /// check for intersection between ray and surface.
@@ -65,6 +74,26 @@ impl MakesAABoundingBox for Triangle {
             upper: self.positions[0]
                 .max_elem_wise(&self.positions[1])
                 .max_elem_wise(&self.positions[2])
+        }
+    }
+}
+
+impl Transformable for Triangle {
+    /// Attempts to transform if the transform is invertible.
+    /// If the transform is not invertible, normals will be invalid.
+    fn transform_in_place(&mut self, transform: &Matrix4) {
+        for position in self.positions.iter_mut() {
+            *position = (transform * position.extend(1.0)).truncate();
+        }
+
+        let normal_transform: Matrix4 = {
+            let mut nt = transform.clone();
+            nt.w = Vec4::new(0.0, 0.0, 0.0, 1.0);
+            nt.invert().unwrap_or(<Matrix4 as One>::one()).transpose()
+        };
+
+        for normal in self.normals.iter_mut() {
+            *normal = normal_transform.transform_vector(*normal);
         }
     }
 }

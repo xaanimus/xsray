@@ -7,8 +7,8 @@ settings:
   resolution_height: 400
 integrator:
   kind: PathTracer
-  max_bounces: 2
-  number_of_samples: 8
+  max_bounces: 0
+  number_of_samples: 2
   sampler:
     kind: Pseudorandom
     #kind: Halton
@@ -33,9 +33,10 @@ scene:
       ior: 2.0
       roughness: 0.2
   meshes:
-    #TODO add transform
     - src: './../models/rock.obj'
       shader: 'shiny'
+      transformations:
+        - {Translate: [0.0, 1.0, 0.0]}
     - src: './../models/cornell_box/empty_box.obj'
       shader: 'blue_diffuse'
   lights:

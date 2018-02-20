@@ -1,10 +1,11 @@
 use std::fmt;
 use std::rc::Rc;
 
-use utilities::math::Vec3;
+use utilities::math::{Vec3, Matrix4};
 
 use super::intersectable::Triangle;
 use super::shader::Shader;
+use super::transformable::Transformable;
 
 pub struct MeshInfo {
     pub positions: Vec<Vec3>,
@@ -50,6 +51,14 @@ impl MeshObject {
         }
 
         Some(mesh_object)
+    }
+}
+
+impl Transformable for MeshObject {
+    fn transform_in_place(&mut self, transform: &Matrix4) {
+        for triangle in self.triangles.iter_mut() {
+            triangle.transform_in_place(transform);
+        }
     }
 }
 

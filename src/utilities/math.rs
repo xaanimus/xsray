@@ -10,10 +10,13 @@ use std::f32;
 // type aliases =================
 pub type Vec2 = cgmath::Vector2<f32>;
 pub type Vec3 = cgmath::Vector3<f32>;
+pub type Vec4 = cgmath::Vector4<f32>;
 pub type Matrix3 = cgmath::Matrix3<f32>;
+pub type Matrix4 = cgmath::Matrix4<f32>;
 pub type RayUnit = RayBase<UnitVec3>;
 
-pub use self::cgmath::{Zero, One, Array, SquareMatrix, InnerSpace, ElementWise};
+pub use self::cgmath::{Zero, One, Array, SquareMatrix,
+                       InnerSpace, ElementWise, Matrix};
 
 // misc functions ===============
 

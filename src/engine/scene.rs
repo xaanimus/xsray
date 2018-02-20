@@ -30,7 +30,7 @@ pub struct Light {
 pub struct Scene {
     pub background_color: Color3,
     pub camera: Camera,
-    pub shaders: HashMap<String, Rc<Shader>>, //delet this
+    pub shaders: HashMap<String, Rc<Shader>>,
     //pub meshes: Vec<MeshObject>, //refactor code to maybe include ref to object intersected with
     pub lights: Vec<Light>,
     pub intersection_accel: BVHAccelerator,
