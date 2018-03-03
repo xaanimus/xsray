@@ -94,7 +94,7 @@ impl Warper for CosineHemisphereWarper {
     type Output = Vec3;
 
     fn warp(&self, from: &Vec2) -> Self::Output {
-        let height = from.x;
+        let height = from.x.sqrt();
         let theta = 2.0 * PI * from.y;
         let r = (1.0 - height.powi(2)).sqrt();
         Vec3 {

@@ -18,8 +18,8 @@ authors = ["Serge-Olivier Amega"]
   serde_derive = "1.0"
   serde_yaml = "0.7"
 
-[profile.debug]
-incremental = true
+#[profile.debug]
+#incremental = true
 
 [profile.release]
 incremental = true
