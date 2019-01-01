@@ -30,7 +30,19 @@ pub fn load_yml_config_from_string(directory_prefix: &str, text: &str)
     Ok(config)
 }
 
+fn print_executable_info() {
+    println!("xsray");
+
+    if cfg!(target_feature = "avx") {
+        println!("AVX enabled");
+    } else {
+        println!("AVX disabled");
+    }
+}
+
 fn main() {
+    print_executable_info();
+
     //load scene file
     let mut arguments = env::args();
     arguments.next();

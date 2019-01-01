@@ -193,9 +193,6 @@ impl IntersectableTriangle {
         let h = ray.direction.vec3_cross(edge2);
         let a = edge1.vec3_dot(h);
 
-//        let h = cross_product_simd_vec3(ray.direction.into(), edge2.into());
-//        let a = dot_product_simd_vec3(edge1, h).extract(0);
-
         if apprx_eq(a, 0.0, f32::EPSILON) {
             return false;
         }

@@ -1,7 +1,7 @@
 # TODO
 - [ ] make some scene spec fields optional
+- [ ] test warping code
 - [ ] have platform specific code that supports nosimd and avx
-- [ ] replace macro_use
 
 - [ ] Object transform
 - [ ] Enable double sided rendering
