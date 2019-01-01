@@ -1,8 +1,5 @@
 
-extern crate stdsimd;
 extern crate cgmath;
-
-use self::stdsimd::simd::f32x4;
 
 pub use std::ops::{Neg, Range};
 use std::f32;
@@ -16,7 +13,7 @@ pub type Matrix4 = cgmath::Matrix4<f32>;
 pub type RayUnit = RayBase<UnitVec3>;
 
 pub use self::cgmath::{Zero, One, Array, SquareMatrix,
-                       InnerSpace, ElementWise, Matrix};
+                       InnerSpace, ElementWise, Matrix, ApproxEq};
 
 // misc functions ===============
 
@@ -30,14 +27,6 @@ pub fn apprx_eq(a: f32, b: f32, eps: f32) -> bool {
 }
 
 // Traits =======================
-
-pub trait F32x4Convertible {
-    fn to_f32x4(&self) -> f32x4;
-}
-
-pub trait Vec3Convertible {
-    fn to_vec3(&self) -> Vec3;
-}
 
 pub trait HasUnit<T> {
     fn unit(&self) -> T;
@@ -88,24 +77,7 @@ impl Neg for UnitVec3 {
     }
 }
 
-//f32x4 extensions ==============
-impl Vec3Convertible for f32x4 {
-    fn to_vec3(&self) -> Vec3 {
-        Vec3::new(
-            self.extract(0),
-            self.extract(1),
-            self.extract(2)
-        )
-    }
-}
-
 //Vec3 Extensions ===============
-impl F32x4Convertible for Vec3 {
-    fn to_f32x4(&self) -> f32x4 {
-        f32x4::new(self.x, self.y, self.z, 0.0)
-    }
-}
-
 impl From<UnitVec3> for Vec3 {
     fn from(uvec: UnitVec3) -> Self {
         uvec._value
@@ -152,21 +124,5 @@ impl<T> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
         ray.t_range.start = 100.0 * f32::EPSILON;
         ray
-    }
-}
-
-pub struct SimdRay {
-    pub position: f32x4,
-    pub direction: f32x4,
-    pub t_range: Range<f32>
-}
-
-impl SimdRay {
-    pub fn new(ray: &RayUnit) -> SimdRay {
-        SimdRay {
-            position: ray.position.to_f32x4(),
-            direction: ray.direction.value().to_f32x4(),
-            t_range: ray.t_range.clone()
-        }
     }
 }

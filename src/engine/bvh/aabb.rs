@@ -1,11 +1,15 @@
-extern crate stdsimd;
-
 use std::f32;
 
 use utilities::math::*;
 
-use self::stdsimd::vendor;
-use self::stdsimd::simd::f32x8;
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+use utilities::simd::{
+    intrin,
+    SimdFloat4,
+    SimdFloat8,
+    __m256
+};
 
 pub trait MakesAABoundingBox {
     fn make_aa_bounding_box(&self) -> AABoundingBox;
@@ -51,13 +55,11 @@ pub trait HasAABoundingBox {
         true
     }
 
-    //#[target_feature(enable = "avx")]
     #[cfg(target_feature = "avx")]
-    //#[target_feature = "+avx"]
     fn intersects_with_bounding_box(&self, ray: &AABBIntersectionRay) -> bool {
         //TODO might want to look into when an element of inverse_direction = NaN
         let bb = self.aa_bounding_box_ref();
-        let bb_vec = unsafe { bb.vec_f32x8() };
+        let bb_vec = unsafe { bb.copy_as_float8() };
 
         let ray_pos_vec = ray.position;
         let direction_inv_vec = ray.direction_inverse;
@@ -65,30 +67,34 @@ pub trait HasAABoundingBox {
         let t_values = (bb_vec - ray_pos_vec) * direction_inv_vec;
 
         let (t_0, t_1) = unsafe {
-            let t_values_low = vendor::_mm256_extractf128_ps(t_values, 0);
-            let t_values_high = vendor::_mm256_extractf128_ps(t_values, 1);
-            let b0 = vendor::_mm_shuffle_ps(t_values_low, t_values_high, 0b_00_01_00_11);
-            let b1 = vendor::_mm_shuffle_ps(b0, b0, 0b_00_10_11_00);
+            let t_values_low = intrin::_mm256_extractf128_ps(t_values.into(), 0);
+            let t_values_high = intrin::_mm256_extractf128_ps(t_values.into(), 1);
+            let b0 = intrin::_mm_shuffle_ps(t_values_low, t_values_high, 0b_00_01_00_11);
+            let b1 = intrin::_mm_shuffle_ps(b0, b0, 0b_00_10_11_00);
             (t_values_low, b1)
         };
 
-        let t_near = unsafe { vendor::_mm_min_ps(t_0, t_1) };
-        let t_far = unsafe { vendor::_mm_max_ps(t_0, t_1) };
+        let t_near = unsafe { intrin::_mm_min_ps(t_0, t_1) };
+        let t_far = unsafe { intrin::_mm_max_ps(t_0, t_1) };
 
         let t_near_max = unsafe {
             let x = t_near;
-            let x1 = vendor::_mm_shuffle_ps(x, x, 0b_00_00_00_01);
-            let x2 = vendor::_mm_shuffle_ps(x, x, 0b_00_00_00_10);
-            let xm = vendor::_mm_max_ss( vendor::_mm_max_ss(x, x1), x2 );
-            xm.extract(0)
+            let x1 = intrin::_mm_shuffle_ps(x, x, 0b_00_00_00_01);
+            let x2 = intrin::_mm_shuffle_ps(x, x, 0b_00_00_00_10);
+            let xm = intrin::_mm_max_ss( intrin::_mm_max_ss(x, x1), x2 );
+
+            let simd_xm: SimdFloat4 = xm.into();
+            simd_xm.e0()
         };
 
         let t_far_min = unsafe {
             let x = t_far;
-            let x1 = vendor::_mm_shuffle_ps(x, x, 0b_00_00_00_01);
-            let x2 = vendor::_mm_shuffle_ps(x, x, 0b_00_00_00_10);
-            let xm = vendor::_mm_min_ss( vendor::_mm_min_ss(x, x1), x2 );
-            xm.extract(0)
+            let x1 = intrin::_mm_shuffle_ps(x, x, 0b_00_00_00_01);
+            let x2 = intrin::_mm_shuffle_ps(x, x, 0b_00_00_00_10);
+            let xm = intrin::_mm_min_ss( intrin::_mm_min_ss(x, x1), x2 );
+
+            let simd_xm: SimdFloat4 = xm.into();
+            simd_xm.e0()
         };
 
         if !(ray.t_start <= t_far_min) ||
@@ -106,8 +112,9 @@ pub trait HasAABoundingBox {
 
 #[cfg(target_feature = "avx")]
 pub struct AABBIntersectionRay {
-    pub position: f32x8,
-    pub direction_inverse: f32x8,
+    // double vector repr: [x, y, z, x, y, z, _, _]
+    pub position: SimdFloat8,
+    pub direction_inverse: SimdFloat8,
     pub t_start: f32,
     pub t_end: f32
 }
@@ -123,13 +130,14 @@ pub struct AABBIntersectionRay {
 impl AABBIntersectionRay {
     #[cfg(target_feature = "avx")]
     pub fn new(ray: &RayUnit) -> AABBIntersectionRay {
-        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
+        let inverse_direction = Vec3::new(1.0, 1.0, 1.0)
+            .div_element_wise(*ray.direction.value());
         AABBIntersectionRay {
-            position: f32x8::new(
+            position: SimdFloat8::new(
                 ray.position.x, ray.position.y, ray.position.z,
                 ray.position.x, ray.position.y, ray.position.z,
                 0.0, 0.0),
-            direction_inverse: f32x8::new(
+            direction_inverse: SimdFloat8::new(
                 inverse_direction.x, inverse_direction.y, inverse_direction.z,
                 inverse_direction.x, inverse_direction.y, inverse_direction.z,
                 0.0, 0.0),
@@ -140,7 +148,8 @@ impl AABBIntersectionRay {
 
     #[cfg(not(target_feature = "avx"))]
     pub fn new(ray: &RayUnit) -> AABBIntersectionRay {
-        let inverse_direction = Vec3::new(1.0, 1.0, 1.0).div_element_wise(*ray.direction.value());
+        let inverse_direction = Vec3::new(1.0, 1.0, 1.0)
+            .div_element_wise(*ray.direction.value());
         AABBIntersectionRay {
             position: ray.position,
             direction_inverse: inverse_direction,
@@ -151,6 +160,8 @@ impl AABBIntersectionRay {
 }
 
 #[derive(Clone, Debug)]
+#[repr(C)]
+#[repr(align(32))]
 pub struct AABoundingBox {
     pub lower: Vec3,
     pub upper: Vec3
@@ -180,9 +191,14 @@ impl AABoundingBox {
     ///and 2 * 4 extra bytes after the bounding box. Make
     ///sure that accessing those extra bytes is legal before
     ///calling this function
-    unsafe fn vec_f32x8(&self) -> f32x8 {
-        let self_ref: &[f32; 3] = self.lower.as_ref();
-        f32x8::load_unchecked(&self_ref[..], 0)
+    /// TODO if align of AABoundingBox is OK, then access should be legal. check this
+    /// TODO test this
+    fn copy_as_float8(&self) -> SimdFloat8 {
+        use std::mem;
+        unsafe {
+            let self_ref = mem::transmute::<&Self, *const f32>(self);
+            intrin::_mm256_load_ps(self_ref).into()
+        }
     }
 }
 
@@ -201,3 +217,67 @@ pub fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
     }
     full_bounding_box
 }
+
+#[cfg(test)]
+#[cfg(all(target_feature = "avx"))]
+mod tests {
+    #[test]
+    fn test_basic_aabb_functions() {
+        use super::*;
+        use std::mem;
+
+        dbg!(mem::align_of::<AABoundingBox>());
+
+        let bb = AABoundingBox {
+            lower: Vec3::new(0.0, 1.0, -1.0),
+            upper: Vec3::new(10.0, 30.0, 2.0)
+        };
+
+        let test_bb_full_array = unsafe { bb.copy_as_float8() }
+            .to_array();
+        let test_bb_array = &test_bb_full_array[0..6];
+        let expected_bb_array = [0.0f32, 1.0, -1.0, 10.0, 30.0, 2.0];
+        assert_array_values_near_f32!(test_bb_array, expected_bb_array, 0.00001);
+    }
+
+    #[test]
+    fn test_get_aa_bounding_box() {
+        use super::*;
+
+        let bb_elem_tuples = [
+            ((0.0f32, 0.0f32, 0.0f32), (1.0f32, 1.0f32, 1.0f32)),
+            ((-1.0, 0.0, 0.5), (10.0, 20.0, 30.0)),
+            ((0.0, -10.0, 0.0), (30.0, -5.0, 1.0))
+        ];
+
+        let bb_elems: Vec<_> = bb_elem_tuples.iter()
+            .map(|(lower, upper)| {
+                AABoundingBox {
+                    lower: Vec3::new(lower.0, lower.1, lower.2),
+                    upper: Vec3::new(upper.0, upper.1, upper.2)
+                }
+            })
+            .collect();
+
+        let test_enclosing_bb = get_aa_bounding_box(bb_elems.as_slice());
+        let expected_enclosing_bb = AABoundingBox {
+            lower: Vec3::new(-1.0, -10.0, 0.0),
+            upper: Vec3::new(30.0, 20.0, 30.0)
+        };
+
+        assert!(
+            test_enclosing_bb.lower
+                .relative_eq(&expected_enclosing_bb.lower,
+                             Vec3::default_epsilon(),
+                             Vec3::default_max_relative()
+                ));
+
+        assert!(
+            test_enclosing_bb.upper
+                .relative_eq(&expected_enclosing_bb.upper,
+                             Vec3::default_epsilon(),
+                             Vec3::default_max_relative()
+                ));
+    }
+}
+

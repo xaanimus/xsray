@@ -1,5 +1,4 @@
 
-extern crate stdsimd;
 extern crate cgmath;
 
 use super::shader::*;
@@ -8,12 +7,18 @@ use super::transformable::*;
 
 use utilities::math::*;
 
+#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+use utilities::simd::{
+    SimdFloat4,
+    SimdRay,
+    intrin,
+    __m128, __m256
+};
+
 use std::rc::Rc;
 use std::f32;
 
 use self::cgmath::Transform;
-use self::stdsimd::vendor;
-use self::stdsimd::simd::f32x4;
 
 //TODO this file into
 //intersectable.rs
@@ -139,9 +144,9 @@ pub struct IntersectableTriangle {
 #[cfg(target_feature = "avx")]
 pub struct IntersectableTriangle {
     triangle: Rc<Triangle>,
-    position_0: f32x4,
-    edge1: f32x4,
-    edge2: f32x4,
+    position_0: SimdFloat4,
+    edge1: SimdFloat4,
+    edge2: SimdFloat4,
 }
 
 impl IntersectableTriangle {
@@ -165,9 +170,9 @@ impl IntersectableTriangle {
         let edge2 = triangle.positions[2] - triangle.positions[0];
         IntersectableTriangle {
             triangle: triangle_ptr,
-            position_0: triangle.positions[0].to_f32x4(),
-            edge1: edge1.to_f32x4(),
-            edge2: edge2.to_f32x4(),
+            position_0: triangle.positions[0].into(),
+            edge1: edge1.into(),
+            edge2: edge2.into(),
         }
     }
 
@@ -182,11 +187,14 @@ impl IntersectableTriangle {
     pub unsafe fn intersect_obstruct_simd(
         &self, ray: &SimdRay, record: &mut IntersectionRecord, _: bool
     ) -> bool {
-        let edge1 = self.edge1;
-        let edge2 = self.edge2;
+        let edge1: SimdFloat4 = self.edge1;
+        let edge2: SimdFloat4 = self.edge2;
 
-        let h = cross_product_simd_vec3(ray.direction, edge2);
-        let a = dot_product_simd_vec3(edge1, h).extract(0);
+        let h = ray.direction.vec3_cross(edge2);
+        let a = edge1.vec3_dot(h);
+
+//        let h = cross_product_simd_vec3(ray.direction.into(), edge2.into());
+//        let a = dot_product_simd_vec3(edge1, h).extract(0);
 
         if apprx_eq(a, 0.0, f32::EPSILON) {
             return false;
@@ -194,18 +202,22 @@ impl IntersectableTriangle {
 
         let f = 1.0 / a;
         let s = ray.position - self.position_0;
-        let u = f * dot_product_simd_vec3(s,h).extract(0);
+        let u = f * s.vec3_dot(h);
+        //let u = f * dot_product_simd_vec3(s,h).extract(0);
         if u < 0.0 || u > 1.0 {
             return false;
         }
 
-        let q = cross_product_simd_vec3(s, edge1);
-        let v = f * dot_product_simd_vec3(ray.direction, q).extract(0);
+        //let q = cross_product_simd_vec3(s, edge1);
+        let q = s.vec3_cross(edge1);
+        //let v = f * dot_product_simd_vec3(ray.direction, q).extract(0);
+        let v = f * ray.direction.vec3_dot(q);
         if v < 0.0 || u + v > 1.0 {
             return false;
         }
 
-        let t = f * dot_product_simd_vec3(edge2, q).extract(0);
+        //let t = f * dot_product_simd_vec3(edge2, q).extract(0);
+        let t = f * edge2.vec3_dot(q);
         if t <= ray.t_range.start || ray.t_range.end <= t || t >= record.t {
             return false;
         }
@@ -216,9 +228,9 @@ impl IntersectableTriangle {
         let beta = u;
         let gamma = v;
         let alpha = 1.0 - beta - gamma;
-        let t_vec = f32x4::new(t, t, t, t);
+        let t_vec = SimdFloat4::new(t, t, t, t);
         *record = IntersectionRecord {
-            position: (ray.position + (t_vec * ray.direction)).to_vec3(),
+            position: (ray.position + (t_vec * ray.direction)).into(),
             normal: self.triangle.normals[0] * alpha +
                 self.triangle.normals[1] * beta +
                 self.triangle.normals[2] * gamma,
@@ -227,32 +239,6 @@ impl IntersectableTriangle {
         };
         return true;
     }
-}
-
-#[cfg(target_feature = "avx")]
-unsafe fn cross_product_simd_vec3(a: f32x4, b: f32x4) -> f32x4 {
-    let v1_0 = vendor::_mm256_set_m128(b, a);
-    let v1 = vendor::_mm256_permute_ps(v1_0, 0b_00_00_10_01);
-    let v2_0 = vendor::_mm256_set_m128(a, b);
-    let v2 = vendor::_mm256_permute_ps(v2_0, 0b_00_01_00_10);
-
-    let v_product = vendor::_mm256_mul_ps(v1, v2);
-    let v_first = vendor::_mm256_extractf128_ps(v_product, 0);
-    let v_second = vendor::_mm256_extractf128_ps(v_product, 1);
-    let v_result = v_first - v_second;
-
-    v_result
-}
-
-#[cfg(target_feature = "avx")]
-unsafe fn dot_product_simd_vec3(a: f32x4, b: f32x4) -> f32x4 {
-    let product = a * b;
-    let product_1 = vendor::_mm_shuffle_ps(product, product, 0b00_00_00_01);
-    let product_2 = vendor::_mm_shuffle_ps(product, product, 0b00_00_00_10);
-
-    vendor::_mm_add_ss(
-        vendor::_mm_add_ss(product, product_1),
-        product_2)
 }
 
 impl Intersectable for IntersectableTriangle {

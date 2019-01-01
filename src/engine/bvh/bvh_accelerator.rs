@@ -1,8 +1,4 @@
 extern crate time;
-extern crate stdsimd;
-
-use self::stdsimd::vendor;
-use self::stdsimd::simd::f32x8;
 
 use super::aabb::*;
 use super::splitter::*;
@@ -13,6 +9,12 @@ use std::ops::Range;
 use std::collections::VecDeque;
 
 use utilities::math::*;
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+use utilities::simd::{
+    intrin,
+    SimdFloat8
+};
 
 /// Bounded Volume Hierarchy Accelerator
 /// Each subtree can be represented by a slice of BVHAcceleratorNode objects

@@ -6,6 +6,9 @@ use self::serde::de::Error;
 
 use utilities::codable::*;
 use utilities::math::*;
+
+#[cfg(target_feature = "avx")]
+use utilities::simd::{SimdRay};
 use utilities::color::*;
 
 use super::meshutils::{MeshObject};
@@ -83,11 +86,15 @@ impl Scene {
         for range in index_ranges {
             for i in range {
                 let obj = &self.triangles[i];
-                let intersected = if cfg!(target_feature = "avx") {
-                    unsafe { obj.intersect_obstruct_simd(&simd_ray, &mut record, false) }
-                } else {
-                    obj.intersect(ray, &mut record)
+
+                #[cfg(not(target_feature = "avx"))]
+                let intersected = obj.intersect(ray, &mut record);
+
+                #[cfg(target_feature = "avx")]
+                let intersected = unsafe {
+                    obj.intersect_obstruct_simd(&simd_ray, &mut record, false)
                 };
+
                 if obstruction_only && intersected {
                     return record;
                 }

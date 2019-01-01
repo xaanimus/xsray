@@ -1,5 +1,3 @@
-#![feature(target_feature)]
-#![feature(cfg_target_feature)]
 #![target_feature(enable = "avx")]
 
 #[macro_use]
@@ -9,7 +7,6 @@ extern crate regex;
 
 #[macro_use]
 mod utilities;
-#[target_feature = "+avx"]
 mod engine;
 
 use std::env;

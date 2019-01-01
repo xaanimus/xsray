@@ -1,10 +1,14 @@
 //!Core utilities
 
+#[macro_use]
+pub mod test_helpers;
+
 pub mod sampler;
 pub mod math;
 pub mod color;
 #[macro_use]
 pub mod codable;
+pub mod simd;
 
 macro_rules! print_mem {
     ($type:ty, $fn:ident) => {
@@ -16,7 +20,8 @@ macro_rules! print_mem {
 }
 
 macro_rules! dbg {
-    ($fqn:path) => {
-        println!("{} = {:?}", stringify!($fqn), $fqn)
+    ($x:expr) => {
+        println!("{} = {:?}", stringify!($x), $x)
     }
 }
+
