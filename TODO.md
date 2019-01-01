@@ -1,5 +1,4 @@
 # TODO
-- [ ] replace simd
 - [ ] have platform specific code that supports nosimd and avx
 - [ ] replace macro_use
 
