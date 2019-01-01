@@ -1,4 +1,5 @@
 # TODO
+- [ ] make some scene spec fields optional
 - [ ] have platform specific code that supports nosimd and avx
 - [ ] replace macro_use
 

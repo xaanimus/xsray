@@ -11,9 +11,6 @@ integrator:
   number_of_samples: 2
   sampler:
     kind: Pseudorandom
-    #kind: Halton
-    #base_x: 2
-    #base_y: 3
 scene:
   background_color: [0, 0, 0]
   camera:

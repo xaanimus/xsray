@@ -43,13 +43,14 @@ fn main() {
 
     let directory_string = filepath.parent().unwrap()
         .to_str().unwrap();
-    println!("scene directory: {}", directory_string);
+    println!("using directory prefix (for loading assets): {}", directory_string);
+    println!("rendering {}", filename);
 
     //load scene
-    //let render_config = config_loader::load_config_from_string(s.as_str()).unwrap();
     let render_config = load_yml_config_from_string(directory_string, s.as_str())
         .unwrap();
     
     let buffer = render_config.render();
-    buffer.save("render_out.png").unwrap();
+    let output_filename = filename.clone() + ".png";
+    buffer.save(output_filename).unwrap();
 }

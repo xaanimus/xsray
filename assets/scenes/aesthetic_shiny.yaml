@@ -1,6 +1,7 @@
 ---
 post_process:
   gamma: 2.2
+  exposure: 1
 settings:
   resolution_width: 400
   resolution_height: 400
@@ -9,6 +10,8 @@ integrator:
   kind: PathTracer
   max_bounces: 0 
   number_of_samples: 4
+  sampler:
+    kind: Pseudorandom
 scene:
   background_color: [0, 0, 0.1]
   camera:

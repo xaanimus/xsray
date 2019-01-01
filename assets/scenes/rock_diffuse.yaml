@@ -1,4 +1,13 @@
 ---
+post_process:
+    gamma: 2.2
+    exposure: 0.3
+integrator:
+    kind: PathTracer
+    max_bounces: 2
+    number_of_samples: 2
+    sampler:
+        kind: Pseudorandom
 settings:
     resolution_width: 1000
     resolution_height: 1000
