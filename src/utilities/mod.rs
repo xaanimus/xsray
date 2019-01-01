@@ -8,6 +8,7 @@ pub mod math;
 pub mod color;
 #[macro_use]
 pub mod codable;
+#[macro_use]
 pub mod simd;
 
 macro_rules! print_mem {

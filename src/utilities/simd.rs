@@ -223,6 +223,7 @@ impl From<SimdFloat4> for Vec3 {
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 pub struct SimdRay {
     pub position: SimdFloat4,
+    /// Invariant: direction is always a unit vector
     pub direction: SimdFloat4,
     pub t_range: Range<f32>
 }
@@ -234,6 +235,26 @@ impl SimdRay {
             position: ray.position.into(),
             direction: (*ray.direction.value()).into(),
             t_range: ray.t_range.clone()
+        }
+    }
+}
+
+/// allows evaluating one or another expression depending on whether avx
+/// is enabled in the current build
+macro_rules! if_avx {
+    (avx = $avx_expr:expr, noavx = $no_avx_expr:expr) => {
+        {
+            #[cfg(target_feature = "avx")]
+            let result = {
+                $avx_expr
+            };
+
+            #[cfg(not(target_feature = "avx"))]
+            let result = {
+                $no_avx_expr
+            };
+
+            result
         }
     }
 }
@@ -297,4 +318,3 @@ mod tests {
         assert_array_eq!(test_array, expected_array);
     }
 }
-

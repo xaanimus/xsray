@@ -25,20 +25,26 @@ use self::cgmath::Transform;
 //transformable.rs
 //triangle.rs
 
+pub enum IntersectionOrderKind {
+    FirstIntersection,
+    AnyIntersection
+}
+
+pub struct IntersectionArgs<'a> {
+    #[cfg(target_feature = "avx")]
+    pub ray: &'a SimdRay,
+    #[cfg(not(target_feature = "avx"))]
+    pub ray: &'a RayUnit,
+    pub record: &'a mut IntersectionRecord,
+    pub intersection_order: IntersectionOrderKind
+}
+
 pub trait Intersectable {
     /// check for intersection between ray and surface.
     /// if there is an intersection, fills record with intersection information
     /// only if the new intersection's t is less than the old intersection's t and return true
     /// if there is no intersection, leave record alone and return false
-    fn intersect(&self, ray: &RayUnit, record: &mut IntersectionRecord) -> bool {
-        self.intersect_obstruct(ray, record, false)
-    }
-
-    fn intersect_obstruct(
-        &self, ray: &RayUnit,
-        record: &mut IntersectionRecord,
-        obstruction_only: bool
-    ) -> bool;
+    fn intersect(&self, args: IntersectionArgs) -> bool;
 }
 
 
@@ -176,76 +182,33 @@ impl IntersectableTriangle {
         }
     }
 
-    #[cfg(not(target_feature = "avx"))]
-    pub unsafe fn intersect_obstruct_simd(
-        &self, ray: &SimdRay, record: &mut IntersectionRecord, _: bool
-    ) -> bool {
-        unimplemented!();
-    }
-
-    #[cfg(target_feature = "avx")]
-    pub unsafe fn intersect_obstruct_simd(
-        &self, ray: &SimdRay, record: &mut IntersectionRecord, _: bool
-    ) -> bool {
-        let edge1: SimdFloat4 = self.edge1;
-        let edge2: SimdFloat4 = self.edge2;
-
-        let h = ray.direction.vec3_cross(edge2);
-        let a = edge1.vec3_dot(h);
-
-        if apprx_eq(a, 0.0, f32::EPSILON) {
-            return false;
-        }
-
-        let f = 1.0 / a;
-        let s = ray.position - self.position_0;
-        let u = f * s.vec3_dot(h);
-        //let u = f * dot_product_simd_vec3(s,h).extract(0);
-        if u < 0.0 || u > 1.0 {
-            return false;
-        }
-
-        //let q = cross_product_simd_vec3(s, edge1);
-        let q = s.vec3_cross(edge1);
-        //let v = f * dot_product_simd_vec3(ray.direction, q).extract(0);
-        let v = f * ray.direction.vec3_dot(q);
-        if v < 0.0 || u + v > 1.0 {
-            return false;
-        }
-
-        //let t = f * dot_product_simd_vec3(edge2, q).extract(0);
-        let t = f * edge2.vec3_dot(q);
-        if t <= ray.t_range.start || ray.t_range.end <= t || t >= record.t {
-            return false;
-        }
-        if !(t < record.t) {
-            return false;
-        }
-
-        let beta = u;
-        let gamma = v;
-        let alpha = 1.0 - beta - gamma;
-        let t_vec = SimdFloat4::new(t, t, t, t);
-        *record = IntersectionRecord {
-            position: (ray.position + (t_vec * ray.direction)).into(),
-            normal: self.triangle.normals[0] * alpha +
-                self.triangle.normals[1] * beta +
-                self.triangle.normals[2] * gamma,
-            t: t,
-            shader: Some(self.triangle.shader.clone())
-        };
-        return true;
-    }
 }
 
 impl Intersectable for IntersectableTriangle {
-    #[cfg(not(target_feature = "avx"))]
-    fn intersect_obstruct(&self, ray: &RayUnit, record: &mut IntersectionRecord, _: bool) -> bool {
+    fn intersect(&self, args: IntersectionArgs) -> bool {
+        let ray = args.ray;
+        let record = args.record;
+
+        let ray_normalized_direction = if_avx!(
+            avx = ray.direction,
+            noavx = ray.direction.value()
+        );
+
+        let cross = if_avx!(
+            avx = |a: SimdFloat4, b| a.vec3_cross(b),
+            noavx = |a: Vec3, b| a.cross(b)
+        );
+
+        let dot = if_avx! (
+            avx = |a: SimdFloat4, b| a.vec3_dot(b),
+            noavx = |a: Vec3, b| a.dot(b)
+        );
+
         let edge1 = self.edge1;
         let edge2 = self.edge2;
 
-        let h = ray.direction.value().cross(edge2);
-        let a = edge1.dot(h);
+        let h = cross(ray_normalized_direction, edge2);
+        let a = dot(edge1, h);
 
         if apprx_eq(a, 0.0, f32::EPSILON) {
             return false;
@@ -253,18 +216,20 @@ impl Intersectable for IntersectableTriangle {
 
         let f = 1.0 / a;
         let s = ray.position - self.position_0;
-        let u = f * s.dot(h);
+
+        let u = f * dot(s, h);
+
         if u < 0.0 || u > 1.0 {
             return false;
         }
 
-        let q = s.cross(edge1);
-        let v = f * ray.direction.value().dot(q);
+        let q = cross(s, edge1);
+        let v = f * dot(ray_normalized_direction, q);
         if v < 0.0 || u + v > 1.0 {
             return false;
         }
 
-        let t = f * edge2.dot(q);
+        let t = f * dot(edge2, q);
         if t <= ray.t_range.start || ray.t_range.end <= t || t >= record.t {
             return false;
         }
@@ -275,8 +240,15 @@ impl Intersectable for IntersectableTriangle {
         let beta = u;
         let gamma = v;
         let alpha = 1.0 - beta - gamma;
+        let t_multiplier = if_avx!(
+            avx = SimdFloat4::new(t,t,t,t),
+            noavx = t
+        );
+
+        let position = (ray.position + t_multiplier * ray_normalized_direction).into();
+
         *record = IntersectionRecord {
-            position: ray.position + t * ray.direction.value(),
+            position,
             normal: self.triangle.normals[0] * alpha +
                 self.triangle.normals[1] * beta +
                 self.triangle.normals[2] * gamma,
@@ -284,22 +256,6 @@ impl Intersectable for IntersectableTriangle {
             shader: Some(self.triangle.shader.clone())
         };
         return true;
-    }
-
-    ///Moller-Trumbore intersection
-    ///calling intersect_obstruct_simd directly yields better performance
-    ///https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-    #[cfg(target_feature = "avx")]
-    fn intersect_obstruct(
-        &self,
-        ray: &RayUnit,
-        record: &mut IntersectionRecord,
-        obstruction_only: bool
-    ) -> bool {
-
-        unsafe {
-            self.intersect_obstruct_simd(&SimdRay::new(ray), record, obstruction_only)
-        }
     }
 
 }

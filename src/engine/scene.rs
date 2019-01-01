@@ -81,22 +81,24 @@ impl Scene {
         let mut record = IntersectionRecord::no_intersection();
 
         #[cfg(target_feature = "avx")]
-        let simd_ray = SimdRay::new(ray);
+        let intersection_ray = &SimdRay::new(ray);
+        #[cfg(not(target_feature = "avx"))]
+        let intersection_ray = ray;
 
-        for range in index_ranges {
+        'outer: for range in index_ranges {
             for i in range {
                 let obj = &self.triangles[i];
 
-                #[cfg(not(target_feature = "avx"))]
-                let intersected = obj.intersect(ray, &mut record);
-
-                #[cfg(target_feature = "avx")]
-                let intersected = unsafe {
-                    obj.intersect_obstruct_simd(&simd_ray, &mut record, false)
+                let args = IntersectionArgs {
+                    ray: intersection_ray,
+                    record: &mut record,
+                    intersection_order: IntersectionOrderKind::FirstIntersection
                 };
 
+                let intersected = obj.intersect(args);
+
                 if obstruction_only && intersected {
-                    return record;
+                    break 'outer; //break and return record
                 }
             }
         }
