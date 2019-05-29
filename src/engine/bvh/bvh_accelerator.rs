@@ -81,7 +81,6 @@ impl BVHAccelerator {
             })
             .collect();
         GenericStatistics::from(leaf_sizes.as_slice(), &|size| *size).println("bvh leaf size");
-        //println!("{:#?}", tree);
 
         BVHAccelerator {
             nodes: tree,
