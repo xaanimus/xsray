@@ -1,0 +1,32 @@
+---
+post_process:
+  gamma: 2.2
+  exposure: 1.0
+settings:
+  resolution_width: 1024
+  resolution_height: 1024
+integrator:
+  kind: PathTracer
+  max_bounces: 1
+  number_of_samples: 4
+  sampler:
+    kind: Pseudorandom
+scene:
+  background_color: [0, 0, 0.01]
+  camera:
+    position: [0, 1, 10]
+    direction: [0, 0, -1]
+    up: [0, 1, 0]
+    plane_distance: 15
+    plane_width: 5
+    plane_height: 5
+  shaders:
+    white_diffuse:
+      kind: Diffuse
+      color: [0.8, 0.8, 1.0]
+  meshes:
+    - src: './../models/suzanne.obj'
+      shader: 'white_diffuse'
+  lights:
+    - position: [2.5, 2.5, 4.5]
+      intensity: 45.0

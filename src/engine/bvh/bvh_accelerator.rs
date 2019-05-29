@@ -38,6 +38,30 @@ fn ensure_idx_exists<T: Clone>(vector: &mut Vec<T>, idx: usize, default: T) {
     }
 }
 
+#[derive(Debug)]
+struct GenericStatistics {
+    mean: f32,
+    stddev: f32
+}
+
+impl GenericStatistics {
+    fn from<T, F : Fn(&T) -> f32>(collection: &[T], get_value: &F) -> GenericStatistics {
+        let mean = collection.iter()
+            .map(get_value).sum::<f32>() / collection.len() as f32;
+        let stddev = collection.iter()
+            .map(|v| {
+                (get_value(v) - mean as f32).powi(2)
+            }).sum::<f32>() / collection.len() as f32;
+        GenericStatistics {
+            mean, stddev
+        }
+    }
+
+    fn println(&self, description: &str) {
+        println!("[{}] : mean = {}; stddev = {}", description, self.mean, self.stddev);
+    }
+}
+
 impl BVHAccelerator {
     pub fn new<T: HasAABoundingBox + HasSurfaceArea>(objects: &mut [T]) -> BVHAccelerator {
         let start_time = time::precise_time_s();
@@ -47,6 +71,17 @@ impl BVHAccelerator {
 
         let end_time = time::precise_time_s();
         println!("bvh build time: {}s", end_time - start_time);
+
+        let leaf_sizes : Vec<f32> = tree.iter()
+            .flat_map(|tree| {
+                match tree {
+                    BVHTree::Leaf {start, end, wrapper} => Some((end - start) as f32),
+                    BVHTree::Node {number_of_nodes, wrapper} => None,
+                }
+            })
+            .collect();
+        GenericStatistics::from(leaf_sizes.as_slice(), &|size| *size).println("bvh leaf size");
+        //println!("{:#?}", tree);
 
         BVHAccelerator {
             nodes: tree,
