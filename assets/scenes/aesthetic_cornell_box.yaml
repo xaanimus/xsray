@@ -1,14 +1,14 @@
 ---
 post_process:
     gamma: 2.2
-    exposure: 1.0
+    exposure: 0.2
 settings:
-    resolution_width: 512
-    resolution_height: 512
+    resolution_width: 1024
+    resolution_height: 1024
 integrator:
     kind: PathTracer
-    max_bounces: 4
-    number_of_samples: 16
+    max_bounces: 0
+    number_of_samples: 4
     sampler:
       kind: Pseudorandom
 scene:

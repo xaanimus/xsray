@@ -98,14 +98,14 @@ impl BVHAccelerator {
             })
         };
 
-        let splitter = MedianIndexSplitter;
-        //let splitter = SAHSubdivideGuessSplitter {
-        //    number_of_subdivs: 50,
-        //    sah_consts: SAHConstants {
-        //        cost_traversal: 2.0,
-        //        cost_triangle_intersection: 1.0
-        //    }
-        //};
+//        let splitter = MedianIndexSplitter {num_objects_in_leaf: 1};
+        let splitter = SAHSubdivideGuessSplitter {
+            number_of_subdivs: 50,
+            sah_consts: SAHConstants {
+                cost_traversal: 2.0,
+                cost_triangle_intersection: 0.6
+            }
+        };
         let m = splitter.get_spliting_index(objects);
 
         ensure_idx_exists(tree_nodes, tree_index, BVHTree::Node {

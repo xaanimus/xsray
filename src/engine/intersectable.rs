@@ -185,6 +185,7 @@ impl IntersectableTriangle {
 }
 
 impl Intersectable for IntersectableTriangle {
+    // TODO consider creating a simd version of this SoA style and benchmark
     fn intersect(&self, args: IntersectionArgs) -> bool {
         let ray = args.ray;
         let record = args.record;
@@ -264,7 +265,7 @@ impl Intersectable for IntersectableTriangle {
 pub struct IntersectionRecord {
     pub shader: Option<Rc<Shader>>,
     pub position: Vec3,
-    pub normal: Vec3,
+    pub normal: Vec3, // TODO change this to UnitVec3
     pub t: f32
 }
 

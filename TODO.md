@@ -1,8 +1,8 @@
 # TODO
-- [ ] make some scene spec fields optional
 - [ ] test warping code
-- [ ] have platform specific code that supports nosimd and avx
-
+- [ ] make sure no simd works
+- [ ] switch from Shader -> Material
+    * enum style
 - [ ] Object transform
 - [ ] Enable double sided rendering
 - [ ] Multiple importance sampling
@@ -10,8 +10,9 @@
 - [ ] Emissive surfaces
 - [ ] Completely smooth refraction + reflection
 - [ ] Refraction/BSDF
+- [ ] make some scene spec fields optional
 - [ ] Bokeh
 - [ ] Multithreaded
 - [ ] Use UnitVec3 for normals throughout code
-  * IntersectionRecord
+    * IntersectionRecord
 

@@ -1,4 +1,7 @@
 ---
+post_process:
+    gamma: 2.2
+    exposure: 1.0
 settings:
     resolution_width: 1000
     resolution_height: 1000
@@ -7,6 +10,8 @@ integrator:
     kind: PathTracer
     max_bounces: 0
     number_of_samples: 1
+    sampler:
+        kind: Pseudorandom
 scene:
     background_color: [0, 0, 0.1]
     camera:
@@ -24,10 +29,9 @@ scene:
             kind: Microfacet
             color: [1.0, 1.0, 1.0]
             ior: 2.0
-            roughness: 3.0
+            roughness: 1.0
     meshes:
         - src: './../models/rock.obj'
-          #shader: 'blue_diffuse'
           shader: 'shiny'
     lights:
         - position: [4.0, 4.0, 4.0]

@@ -3,6 +3,7 @@ extern crate cgmath;
 
 pub use std::ops::{Neg, Range};
 use std::f32;
+use std::fmt;
 
 // type aliases =================
 pub type Vec2 = cgmath::Vector2<f32>;
@@ -124,5 +125,17 @@ impl<T> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
         ray.t_range.start = 100.0 * f32::EPSILON;
         ray
+    }
+}
+
+impl<T> fmt::Debug for RayBase<T>
+    where T: fmt::Debug
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "RayBase(position: {:?}, direction: {:?}, t_range: {:?})",
+            self.position,
+            self.direction,
+            self.t_range
+        )
     }
 }

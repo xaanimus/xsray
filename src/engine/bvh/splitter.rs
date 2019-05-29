@@ -38,12 +38,18 @@ pub trait BVHSplitter {
         where T: HasAABoundingBox + HasSurfaceArea;
 }
 
-pub struct MedianIndexSplitter;
+pub struct MedianIndexSplitter {
+    pub num_objects_in_leaf: usize
+}
 impl BVHSplitter for MedianIndexSplitter {
     fn get_spliting_index<T>(&self, sorted_objects: &[T]) -> usize
         where T: HasAABoundingBox + HasSurfaceArea
     {
-        sorted_objects.len() / 2
+        if sorted_objects.len() <= self.num_objects_in_leaf {
+            0
+        } else {
+            sorted_objects.len() / 2
+        }
     }
 }
 

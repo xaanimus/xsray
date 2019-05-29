@@ -16,5 +16,6 @@ pub mod scene;
 pub mod scene_builder;
 
 pub mod shader;
+pub mod material;
 pub mod renderer;
 

@@ -16,10 +16,12 @@ use std::rc::Rc;
 use utilities::sampler::Sampler;
 use utilities::sampler::NumberSequenceSampler;
 
-pub fn default_shader() -> DiffuseShader {
-    DiffuseShader {
-        color: Color3::new(1.0, 1.0, 1.0)
-    }
+pub enum Material {
+    BSDF(Box<BSDFMaterial>)
+}
+
+pub fn default_material() -> Material {
+    unimplemented!();
 }
 
 pub struct LightDirectionPair<'a> {
@@ -29,112 +31,101 @@ pub struct LightDirectionPair<'a> {
 
 #[derive(Deserialize)]
 #[serde(tag = "kind")]
-enum DeserializableShaderSpec {
+enum DeserializableMaterialSpec {
     Diffuse { color: CodableWrapper<Color3> },
     Microfacet { color: CodableWrapper<Color3>, ior: f32, roughness: f32}
 }
-
-impl_deserialize!(CodableWrapper<Rc<Shader>>, |deserializer| {
-    use self::DeserializableShaderSpec::*;
-    let shader_spec = DeserializableShaderSpec::deserialize(deserializer)?;
-    let shader_ptr: Rc<Shader> = match shader_spec {
-        Diffuse {color} => Rc::new(DiffuseShader::new(color.get())),
+impl_deserialize!(CodableWrapper<Rc<Material>>, |deserializer| {
+    use self::DeserializableMaterialSpec::*;
+    let material_spec = DeserializableMaterialSpec::deserialize(deserializer)?;
+    let material_ptr: Rc<Material> = match material_spec {
+        Diffuse {color} =>
+            Rc::new(DiffuseBSDFMaterial::new(color.get()).into()),
         Microfacet { color, ior, roughness} =>
-            Rc::new(MicrofacetReflectiveShader::new(ior, roughness, color.get()))
+            Rc::new(MicrofacetReflectiveBSDFMaterial::new(ior, roughness, color.get()).into())
     };
-    Ok(CodableWrapper(shader_ptr))
+    Ok(CodableWrapper(material_ptr))
 });
 
-pub trait Shader {
-    //TODO get rid of shade function since it's not used anymore
-    fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
-        Color3::zero()
-    }
-    // TODO return pdf of sample directly from sample_bounce
-    fn sample_bounce(
+struct BSDFSampleResult {
+    sample: UnitVec3,
+    pdf: f32
+}
+pub trait BSDFMaterial: Debug {
+    fn sample(
         &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
         sampler: &mut NumberSequenceSampler
-    ) -> UnitVec3;
-    fn probability_of_sample(&self, normal: &UnitVec3,
-                             light_directions: &LightDirectionPair) -> f32;
-    ///Returns brdf * (n dot w_incoming).
-    ///Ensures that all components of Color3 are positive
-    fn brdf_cosine_term(
-        &self, normal: &UnitVec3, light_directions: &LightDirectionPair
-    ) -> Color3;
-}
+    ) -> BSDFSampleResult;
 
-impl Debug for Shader {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Shader")
+    fn sample_pdf(
+        &self, normal: &UnitVec3, light_directions: &LightDirectionPair
+    ) -> f32;
+
+    fn brdf(&self, normal: &UnitVec3, light_directions: &LightDirectionPair) -> Color3;
+}
+impl<T> From<T> for Material
+    where T: BSDFMaterial + 'static
+{
+    fn from(bsdf_material: T) -> Self {
+        Material::BSDF(Box::new(bsdf_material))
     }
 }
 
-pub struct DiffuseShader {
+#[derive(Debug)]
+pub struct DiffuseBSDFMaterial {
     color: Color3
 }
-
-impl DiffuseShader {
-    pub fn new(color: Color3) -> DiffuseShader {
-        DiffuseShader {
-            color: color
-        }
+impl DiffuseBSDFMaterial {
+    pub fn new(color: Color3) -> DiffuseBSDFMaterial {
+        DiffuseBSDFMaterial { color }
     }
 }
-
-impl Shader for DiffuseShader {
-
-    fn shade(&self, record: &IntersectionRecord, scene: &Scene) -> Color3 {
-        scene.lights.iter().fold(Color3::new(0.0, 0.0, 0.0), |acc, light| {
-            let light_vec = light.position.get() - record.position;
-            //see if there is an obstruction to this light
-            if scene.intersect_for_obstruction(record.position, light.position.get())
-                .t < f32::INFINITY {
-                acc
-            } else {
-                f32::max(0., record.normal.dot(light_vec.normalize())) *
-                    self.color * light.intensity / light_vec.magnitude2() + acc
-            }
-        })
-    }
-
-    fn sample_bounce(
+impl BSDFMaterial for DiffuseBSDFMaterial {
+    fn sample(
         &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
         sampler: &mut NumberSequenceSampler
-    ) -> UnitVec3 {
-        let sample = CosineHemisphereWarper.sample(sampler);
-        transform_into(normal, &sample)
+    ) -> BSDFSampleResult {
+        let untransformed_sample = CosineHemisphereWarper.sample(sampler);
+        let sample = transform_into(normal, &untransformed_sample);
+
+        let pdf = {
+            let light_directions = LightDirectionPair {
+                incoming: &sample,
+                outgoing: outgoing_light_direction
+            };
+            self.sample_pdf(normal, &light_directions)
+        };
+
+        BSDFSampleResult {
+            sample,
+            pdf
+        }
     }
 
-    fn probability_of_sample(&self, normal: &UnitVec3,
-                             light_directions: &LightDirectionPair) -> f32 {
+    fn sample_pdf(&self, normal: &UnitVec3, light_directions: &LightDirectionPair) -> f32 {
         let sample = transform_from(normal, light_directions.incoming.value());
         CosineHemisphereWarper.pdf(sample.value())
     }
 
-    fn brdf_cosine_term(
-        &self, normal: &UnitVec3, light_directions: &LightDirectionPair
-    ) -> Color3 {
+    fn brdf(&self, normal: &UnitVec3, light_directions: &LightDirectionPair) -> Vec3 {
         if light_directions.outgoing.value().dot(*normal.value()) < 0.0 {
             return Color3::zero()
         }
 
-        let brdf = self.color / PI;
-        let cosine_term = normal.value().dot(*light_directions.incoming.value()); //TODO figure out situation with Into
-        (brdf * cosine_term).max_elem_wise(&Color3::zero())
+        self.color / PI
     }
 }
 
-pub struct MicrofacetReflectiveShader {
+#[derive(Debug)]
+pub struct MicrofacetReflectiveBSDFMaterial {
     index_of_refraction: f32,
     roughness: f32,
     color: Color3,
     warper: GGXNormalHalfVectorWarper
 }
-
-impl MicrofacetReflectiveShader {
-    fn new(index_of_refraction: f32, roughness: f32, color: Color3) -> MicrofacetReflectiveShader {
-        MicrofacetReflectiveShader {
+impl MicrofacetReflectiveBSDFMaterial {
+    fn new(index_of_refraction: f32, roughness: f32, color: Color3) -> MicrofacetReflectiveBSDFMaterial {
+        MicrofacetReflectiveBSDFMaterial {
             index_of_refraction: index_of_refraction,
             roughness: roughness,
             color: color,
@@ -144,28 +135,25 @@ impl MicrofacetReflectiveShader {
         }
     }
 }
-
-impl Shader for MicrofacetReflectiveShader {
-    fn sample_bounce(
+impl BSDFMaterial for MicrofacetReflectiveBSDFMaterial {
+    fn sample(
         &self, normal: &UnitVec3, outgoing_light_direction: &UnitVec3,
         sampler: &mut NumberSequenceSampler
-    ) -> UnitVec3 {
+    ) -> BSDFSampleResult {
         let half_vector = transform_into(
             normal, &GGXNormalHalfVectorWarper { alpha: self.roughness }.sample(sampler)
         );
         let incoming_light_direction = reflection(outgoing_light_direction, &half_vector);
-        incoming_light_direction
+        //incoming_light_direction
+        unimplemented!()
     }
 
-    fn probability_of_sample(&self, normal: &UnitVec3,
-                             light_directions: &LightDirectionPair) -> f32 {
+    fn sample_pdf(&self, normal: &UnitVec3, light_directions: &LightDirectionPair) -> f32 {
         let half = half_vector(light_directions.incoming, light_directions.outgoing);
-        ggx_distribution(&half, normal, self.roughness) * normal.value().dot(*half.value()).abs() // 0, .05, 1.2
+        ggx_distribution(&half, normal, self.roughness) * normal.value().dot(*half.value()).abs()
     }
 
-    fn brdf_cosine_term(
-        &self, normal: &UnitVec3, light_directions: &LightDirectionPair
-    ) -> Color3 {
+    fn brdf(&self, normal: &UnitVec3, light_directions: &LightDirectionPair) -> Vec3 {
         let alpha = self.roughness;
         let ior = self.index_of_refraction;
         let f0 = fresnel_schlick_at_normal(ior);
@@ -176,7 +164,7 @@ impl Shader for MicrofacetReflectiveShader {
 
         let denom =
             light_directions.incoming.value().dot(*normal.value()).abs() *
-            light_directions.outgoing.value().dot(*normal.value()).abs() * 4.0;
+                light_directions.outgoing.value().dot(*normal.value()).abs() * 4.0;
 
         let result = self.color * num * normal.value().dot(*light_directions.incoming.value())
             / denom;
@@ -242,5 +230,3 @@ fn fresnel_schlick(
     let m = half_vector.value();
     f0 + (1.0 - f0) * ((1.0 - wi.dot(*m)).powi(5))
 }
-
-

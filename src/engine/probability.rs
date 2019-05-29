@@ -111,6 +111,7 @@ impl Warper for CosineHemisphereWarper {
 }
 
 /// Samples half vectors for ggx
+#[derive(Debug)]
 pub struct GGXNormalHalfVectorWarper {
     pub alpha: f32
 }
@@ -171,6 +172,7 @@ pub fn transform_from(normal: &UnitVec3, sample: &Vec3) -> UnitVec3 {
     (rot_matrix * *sample).unit()
 }
 
+// TODO revise this!
 pub fn ggx_distribution(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {
     let a2 = alpha.powi(2);
     let n = *normal.value();
@@ -178,6 +180,19 @@ pub fn ggx_distribution(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -
     let denom = PI * { n.dot(m).powi(2) * (a2 - 1.0) + 1.0 }.powi(2);
     a2 / denom
 }
+
+/* TODO REPLACE GGX WITH THIS
+float distribution_of_normals_ggx(vec3 half_vector, vec3 normal, float roughness) {
+    float angle = acos(dot(half_vector, normal));
+
+    float numerator = pow(roughness, 2) * positive_characteristic(dot(half_vector, normal));
+
+    float denominator_part1 = pow(cos(angle), 4);
+    float denominator_part2 = pow(pow(roughness, 2) + pow(tan(angle), 2), 2);
+    float denominator = pi * denominator_part1 * denominator_part2;
+}
+*/
+
 
 //this is broken for some reason. don't know why.
 //pub fn ggx_distribution(half_vector: &UnitVec3, normal: &UnitVec3, alpha: f32) -> f32 {

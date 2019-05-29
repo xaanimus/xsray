@@ -7,12 +7,12 @@ settings:
     resolution_height: 1024
 integrator:
     kind: PathTracer
-    max_bounces: 0
+    max_bounces: 1
     number_of_samples: 4
     sampler:
       kind: Pseudorandom
 scene:
-    background_color: [0, 0, 0.1]
+    background_color: [0, 0, 0.01]
     camera:
         position: [0, 1, 10]
         direction: [0, 0, -1]
