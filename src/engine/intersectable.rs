@@ -231,10 +231,7 @@ impl Intersectable for IntersectableTriangle {
         }
 
         let t = f * dot(edge2, q);
-        if t <= ray.t_range.start || ray.t_range.end <= t || t >= record.t {
-            return false;
-        }
-        if !(t < record.t) {
+        if t < ray.t_range.start || ray.t_range.end <= t || t >= record.t {
             return false;
         }
 

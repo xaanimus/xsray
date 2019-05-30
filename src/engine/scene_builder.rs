@@ -24,18 +24,28 @@ fn polygons_to_triangles(polys: &Vec<obj::raw::object::Polygon>)
 {
     let mut collect = Vec::<([usize; 3], [usize; 3])>::new();
     for poly in polys {
-        match poly {
-            &obj::raw::object::Polygon::PN(ref vn_vec) if vn_vec.len() == 3 => {
-                let ind = ([vn_vec[0].0, vn_vec[1].0, vn_vec[2].0],
-                           [vn_vec[0].1, vn_vec[1].1, vn_vec[2].1]);
-                collect.push(ind);
-            },
-            //TODO make this less ugly
-            &obj::raw::object::Polygon::PN(ref vn_vec) if vn_vec.len() != 3 => {
-                return Err(SceneError("Fatal error: polygons must be triangles!".into()));
+        let pn_vec = match poly {
+            &obj::raw::object::Polygon::PTN(ref ptn_polygon) => {
+                let pn_vec: Vec<_> = ptn_polygon.iter()
+                    .map(|ptn| (ptn.0, ptn.2))
+                    .collect();
+                pn_vec
+            }
+            &obj::raw::object::Polygon::PN(ref pn_vec) => {
+                pn_vec.clone()
             },
             _ => return Err(SceneError("an error occured while converting polys to tris".into()))
+        };
+
+        if pn_vec.len() != 3 {
+            return Err(SceneError("Fatal error: polygons must be triangles!".into()));
         }
+
+        let ind = (
+            [pn_vec[0].0, pn_vec[1].0, pn_vec[2].0],
+            [pn_vec[0].1, pn_vec[1].1, pn_vec[2].1]
+        );
+        collect.push(ind);
     }
 
     Ok(collect)

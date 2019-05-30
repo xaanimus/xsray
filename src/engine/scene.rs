@@ -116,7 +116,7 @@ impl Scene {
         &self, origin: Vec3, destination: Vec3
     ) -> IntersectionRecord {
         let ray = {
-            let mut ray = RayBase::new_epsilon_offset(origin, (destination - origin).unit());
+            let mut ray = RayUnit::new_epsilon_offset(origin, (destination - origin).unit());
             ray.t_range.end = (destination - origin).magnitude();
             ray
         };
