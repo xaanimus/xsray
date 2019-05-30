@@ -232,96 +232,76 @@ pub struct PathTracerIntegrator {
     sampler_number_sequence: NumberSequenceSampler
 }
 
-impl Integrator for PathTracerIntegrator {
-    fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3 {
+impl PathTracerIntegrator {
+    fn shade_ray_intern(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler, bounces: u32) -> Color3 {
+        let intersection = scene.intersect(ray);
+        if !intersection.intersected() {
+            return scene.background_color;
+        }
 
+        let shader = intersection.shader.clone().unwrap_or_else(|| Rc::new(default_shader()));
+        let normal = intersection.normal.unit();
+
+        let outgoing_light_dir = ray.direction.clone().neg();
+
+        // contribution from all scene lights
+        let light_contribution: Color3 = scene.lights.iter()
+            .map(|light| -> Color3 {
+                let shadow_ray_intersection = scene.intersect_for_obstruction(intersection.position, light.position.get());
+                if shadow_ray_intersection.intersected() {
+                    return Color3::zero();
+                }
+
+                let incoming_light_vec: Vec3 = light.position.get() - intersection.position;
+                let incoming_light_dir = incoming_light_vec.unit();
+                let distance_to_light: f32 = incoming_light_vec.magnitude();
+
+                let radiance = light.intensity / distance_to_light.powi(2);
+                let brdf_cos_value = shader.brdf_cosine_term(
+                    &normal,
+                    &LightDirectionPair {
+                        incoming: &incoming_light_dir,
+                        outgoing: &outgoing_light_dir
+                    }
+                );
+
+                brdf_cos_value * radiance
+            })
+            .fold(Color3::zero(), |acc, new_elem| acc + new_elem);
+
+        // contribution from shader sample bounce
+        let bsdf_contribution = if bounces <= 0 {
+            Color3::zero()
+        } else {
+            let incoming_dir = shader.sample_bounce(&normal, &outgoing_light_dir, sampler);
+            let light_directions = &LightDirectionPair {
+                incoming: &incoming_dir,
+                outgoing: &outgoing_light_dir
+            };
+            let sample_pdf = shader.probability_of_sample(&normal, light_directions);
+            let brdf_cos_value = shader.brdf_cosine_term(&normal, light_directions);
+
+            let sample_ray = RayUnit::new_epsilon_offset(intersection.position, incoming_dir.clone());
+            let radiance = self.shade_ray_intern(&sample_ray, scene, sampler, bounces - 1);
+
+            radiance.mul_element_wise(brdf_cos_value) / sample_pdf
+        };
+
+        bsdf_contribution + light_contribution
+    }
+}
+
+impl Integrator for PathTracerIntegrator {
+
+    fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3 {
         let num_bounces = if self.max_bounces == 0 {
             0
         } else {
             rand::random::<u32>() % self.max_bounces
         };
 
-        let mut path_accumulation_multiplier = Color3::new(1.0, 1.0, 1.0);
-        let mut accumulated_color = Color3::new(0.0, 0.0, 0.0);
-        let mut current_ray = ray.clone();
-        for _ in 0..(self.max_bounces + 1) {
-            let outgoing_light_direction = current_ray.direction.clone().neg();
-
-            let intersection_record = scene.intersect(&current_ray);
-            if intersection_record.intersected() {
-                let shader = intersection_record.shader
-                    .unwrap_or_else(|| Rc::new(default_shader()));
-                let normal: UnitVec3 = intersection_record.normal.unit();
-
-                // add scene light contribution
-                let mut light_contribution = Color3::new(0.0, 0.0, 0.0);
-                for light in &scene.lights {
-                    let light_obstruction_intersection =
-                        scene.intersect_for_obstruction(
-                            intersection_record.position, light.position.get());
-                    if light_obstruction_intersection.intersected() {
-                        continue;
-                    }
-
-                    let incoming_light_vector: Vec3 = light.position.get() - intersection_record.position;
-                    let incoming_light_direction = UnitVec3::new(&incoming_light_vector);
-                    let distance_to_light: f32 = incoming_light_vector.magnitude();
-
-                    let light_radiance_on_surface = light.intensity / distance_to_light.powi(2);
-                    let brdf_cos_value = shader.brdf_cosine_term(
-                        &normal,
-                        &LightDirectionPair {
-                            incoming: &incoming_light_direction,
-                            outgoing: &outgoing_light_direction
-                        });
-                    let this_light_contribtion = brdf_cos_value * light_radiance_on_surface;
-                    light_contribution += this_light_contribtion;
-                }
-                accumulated_color +=
-                    path_accumulation_multiplier.mul_element_wise(light_contribution);
-
-                // add brdf light contribution
-                let sampled_incoming_direction = shader.sample_bounce(&normal, &outgoing_light_direction, sampler);
-                { // light_directions borrow scope
-                    let light_directions = &LightDirectionPair {
-                        incoming: &sampled_incoming_direction,
-                        outgoing: &outgoing_light_direction
-                    };
-                    let brdf_sample_pdf = shader.probability_of_sample(&normal, light_directions);
-                    let brdf_cos_value = shader.brdf_cosine_term(&normal, light_directions);
-                    path_accumulation_multiplier
-                        .mul_assign_element_wise(brdf_cos_value / brdf_sample_pdf);
-                }
-                current_ray = RayUnit::new_epsilon_offset(
-                    intersection_record.position,
-                    sampled_incoming_direction);
-            } else {
-                accumulated_color +=
-                    path_accumulation_multiplier.mul_element_wise(scene.background_color);
-                break;
-            }
-        }
-
-        accumulated_color
+        self.shade_ray_intern(ray, scene, sampler, num_bounces)
     }
-
-    //fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3 {
-    //    // find intersection.
-    //    // if intersection found:
-    //    //   add surface's emissive light contribution
-    //    //   add random light sample contribution
-    //    //   add bsdf sample contribution
-
-    //    let max_bounces = if self.max_bounces == 0 {
-    //        0
-    //    } else {
-    //        rand::random::<u32>() % self.max_bounces
-    //    };
-
-    //    let path = trace_path(ray, scene, max_bounces, sampler);
-    //    let color = shade_path(&path, scene, max_bounces);
-    //    color
-    //}
 
     fn shade_camera_point(
         &self, scene: &Scene, u: f32, v: f32, pixel_info: &UvPixelInfo

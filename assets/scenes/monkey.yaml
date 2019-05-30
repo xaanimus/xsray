@@ -1,18 +1,18 @@
 ---
 post_process:
   gamma: 2.2
-  exposure: 1.0
+  exposure: 6.0
 settings:
   resolution_width: 1024
   resolution_height: 1024
 integrator:
   kind: PathTracer
-  max_bounces: 1
+  max_bounces: 10
   number_of_samples: 4
   sampler:
     kind: Pseudorandom
 scene:
-  background_color: [0, 0, 0.01]
+  background_color: [0, 0, 0.0]
   camera:
     position: [0, 1, 10]
     direction: [0, 0, -1]
@@ -29,4 +29,4 @@ scene:
       shader: 'white_diffuse'
   lights:
     - position: [2.5, 2.5, 4.5]
-      intensity: 45.0
+      intensity: 9.0
