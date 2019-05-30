@@ -7,7 +7,7 @@ use super::transformable::*;
 
 use utilities::math::*;
 
-#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+#[cfg(all(target_feature = "avx"))]
 use utilities::simd::{
     SimdFloat4,
     SimdRay,
@@ -192,7 +192,7 @@ impl Intersectable for IntersectableTriangle {
 
         let ray_normalized_direction = if_avx!(
             avx = ray.direction,
-            noavx = ray.direction.value()
+            noavx = *ray.direction.value()
         );
 
         let cross = if_avx!(

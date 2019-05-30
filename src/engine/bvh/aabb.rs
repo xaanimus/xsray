@@ -25,13 +25,13 @@ pub trait HasAABoundingBox {
     }
 
     #[cfg(not(target_feature = "avx"))]
-    fn intersects_with_bounding_box(&self, _ray: &AABBIntersectionRay) -> bool {
+    fn intersects_with_bounding_box(&self, ray: &AABBIntersectionRay) -> bool {
         //TODO retest
         let bb = self.aa_bounding_box_ref();
         let bb_lower: &[f32; 3] = bb.lower.as_ref();
         let bb_upper: &[f32; 3] = bb.upper.as_ref();
         let ray_pos: &[f32; 3] = ray.position.as_ref();
-        let inv_dir: &[f32; 3] = inverse_direction.as_ref();
+        let inv_dir: &[f32; 3] = ray.direction_inverse.as_ref();
 
         let (mut t_near_max, mut t_far_min) = (-f32::INFINITY, f32::INFINITY);
         for dimension in 0..3 {
@@ -45,8 +45,8 @@ pub trait HasAABoundingBox {
             t_far_min = t_far_min.min(t_far);
         }
 
-        if !(ray.t_range.start <= t_far_min) ||
-            !(t_near_max <= ray.t_range.end) ||
+        if !(ray.t_start <= t_far_min) ||
+            !(t_near_max <= ray.t_end) ||
             !(t_near_max <= t_far_min)
         {
             return false

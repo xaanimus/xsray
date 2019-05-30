@@ -199,6 +199,7 @@ impl From<SimdFloat4> for __m128 {
     }
 }
 
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl From<SimdFloat8> for __m256 {
     fn from(item: SimdFloat8) -> Self {
         item.0
