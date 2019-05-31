@@ -7,8 +7,8 @@ settings:
     resolution_height: 1024
 integrator:
     kind: PathTracer
-    max_bounces: 0
-    number_of_samples: 4
+    max_bounces: 4
+    number_of_samples: 12
     sampler:
       kind: Pseudorandom
 scene:

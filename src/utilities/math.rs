@@ -5,6 +5,9 @@ pub use std::ops::{Neg, Range};
 use std::f32;
 use std::fmt;
 
+// consts =======================
+const BIG_EPSILON_F32 : f32 = 0.00003;
+
 // type aliases =================
 pub type Vec2 = cgmath::Vector2<f32>;
 pub type Vec3 = cgmath::Vector3<f32>;
@@ -36,6 +39,10 @@ pub trait HasUnit<T> {
 pub trait HasElemWiseExtrema {
     fn min_elem_wise(&self, other: &Self) -> Self;
     fn max_elem_wise(&self, other: &Self) -> Self;
+}
+
+pub trait AccurateOps {
+    fn accurate_subtraction(&self, other: &Self) -> Self;
 }
 
 //UnitVec3 ======================
@@ -103,6 +110,16 @@ impl HasElemWiseExtrema for Vec3 {
     }
 }
 
+impl AccurateOps for Vec3 {
+    fn accurate_subtraction(&self, other: &Self) -> Self {
+        Vec3::new(
+            (self.x as f64 - other.x as f64) as f32,
+            (self.y as f64 - other.y as f64) as f32,
+            (self.z as f64 - other.z as f64) as f32
+        )
+    }
+}
+
 //Ray ===========================
 
 #[derive(Clone)]
@@ -123,7 +140,7 @@ impl<T> RayBase<T> {
 
     pub fn new_epsilon_offset(position: Vec3, direction: T) -> RayBase<T> {
         let mut ray = RayBase::<T>::new(position, direction);
-        ray.t_range.start = f32::EPSILON;
+        ray.t_range.start = BIG_EPSILON_F32;
         ray
     }
 }

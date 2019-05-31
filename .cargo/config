@@ -1,2 +1,2 @@
 [build]
-#rustflags = ["-Ctarget-feature=+avx"]
+rustflags = ["-Ctarget-feature=+avx"]

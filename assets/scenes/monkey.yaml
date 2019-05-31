@@ -7,8 +7,8 @@ settings:
   resolution_height: 1024
 integrator:
   kind: PathTracer
-  max_bounces: 0
-  number_of_samples: 1
+  max_bounces: 4
+  number_of_samples: 12
   sampler:
     kind: Pseudorandom
 scene:
@@ -23,10 +23,10 @@ scene:
   shaders:
     white_diffuse:
       kind: Diffuse
-      color: [0.8, 0.8, 1.0]
+      color: [1.0, 1.0, 1.0]
   meshes:
-    - src: './../models/suzanne_problematic_triangles.obj'
+    - src: './../models/suzanne.obj'
       shader: 'white_diffuse'
   lights:
-    - position: [2.5, 2.5, 4.5]
+    - position: [2.07, 3.9, 8]
       intensity: 9.0

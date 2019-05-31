@@ -143,7 +143,7 @@ pub struct IntersectableTriangle {
     triangle: Rc<Triangle>,
     position_0: Vec3,
     edge1: Vec3,
-    edge2: Vec3,
+    edge2: Vec3
 }
 
 #[derive(Debug)]
@@ -159,8 +159,8 @@ impl IntersectableTriangle {
     #[cfg(not(target_feature = "avx"))]
     pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
         let triangle_ptr = Rc::new(triangle.clone());
-        let edge1 = triangle.positions[1] - triangle.positions[0];
-        let edge2 = triangle.positions[2] - triangle.positions[0];
+        let edge1 = triangle.positions[1].accurate_subtraction(&triangle.positions[0]);
+        let edge2 = triangle.positions[2].accurate_subtraction(&triangle.positions[0]);
         IntersectableTriangle {
             triangle: triangle_ptr,
             position_0: triangle.positions[0],
@@ -172,8 +172,8 @@ impl IntersectableTriangle {
     #[cfg(target_feature = "avx")]
     pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
         let triangle_ptr = Rc::new(triangle.clone());
-        let edge1 = triangle.positions[1] - triangle.positions[0];
-        let edge2 = triangle.positions[2] - triangle.positions[0];
+        let edge1 = triangle.positions[1].accurate_subtraction(&triangle.positions[0]);
+        let edge2 = triangle.positions[2].accurate_subtraction(&triangle.positions[0]);
         IntersectableTriangle {
             triangle: triangle_ptr,
             position_0: triangle.positions[0].into(),
@@ -230,7 +230,9 @@ impl Intersectable for IntersectableTriangle {
             return false;
         }
 
-        let t = f * dot(edge2, q);
+        //let t = f * dot(edge2, q);
+        let n = cross(edge1, edge2);
+        let t = dot(-s, n) / dot(ray_normalized_direction, n);
         if t < ray.t_range.start || ray.t_range.end <= t || t >= record.t {
             return false;
         }

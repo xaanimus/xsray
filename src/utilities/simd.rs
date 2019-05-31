@@ -8,7 +8,7 @@ use super::math::{RayUnit, Vec3};
 use std::mem;
 use std::ops::{
     Add, Sub, Mul,
-    Range
+    Range, Neg
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -157,6 +157,27 @@ impl Sub for SimdFloat8 {
 
     fn sub(self, rhs: SimdFloat8) -> SimdFloat8 {
         unsafe { intrin::_mm256_sub_ps(self.0, rhs.0).into() }
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+impl Neg for SimdFloat4 {
+    type Output = SimdFloat4;
+
+    fn neg(self) -> Self::Output {
+        // TODO can make this faster by flipping sign bits
+        self * SimdFloat4::new(-1.0, -1.0, -1.0, -1.0)
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+impl Neg for SimdFloat8 {
+    type Output = SimdFloat8;
+
+    fn neg(self) -> Self::Output {
+        // TODO can make this faster by flipping sign bits
+        self * SimdFloat8::new(-1.0, -1.0, -1.0, -1.0,
+                               -1.0, -1.0, -1.0, -1.0)
     }
 }
 

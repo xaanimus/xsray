@@ -297,7 +297,7 @@ impl Integrator for PathTracerIntegrator {
         let num_bounces = if self.max_bounces == 0 {
             0
         } else {
-            rand::random::<u32>() % self.max_bounces
+            rand::random::<u32>() % (self.max_bounces + 1)
         };
 
         self.shade_ray_intern(ray, scene, sampler, num_bounces)
