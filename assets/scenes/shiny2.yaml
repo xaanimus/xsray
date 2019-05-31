@@ -3,19 +3,21 @@ post_process:
     gamma: 2.2
     exposure: 1.0
 settings:
-    resolution_width: 400
-    resolution_height: 400
+    resolution_width: 1024
+    resolution_height: 1024
 integrator:
     kind: PathTracer
     max_bounces: 4
-    number_of_samples: 8
+    number_of_samples: 32
+    sampler:
+        kind: Pseudorandom
 scene:
-    background_color: [0, 0, 0.1]
+    background_color: [0, 0, 0]
     camera:
-        position: [5, 2.5, -4.0]
-        direction: [-1, 0, 1]
+        position: [0, 2.5, 4.0]
+        direction: [0, 0, -1]
         up: [0, 1, 0]
-        plane_distance: 7
+        plane_distance: 5
         plane_width: 15 
         plane_height: 15
     shaders:
@@ -25,7 +27,7 @@ scene:
         shiny:
             kind: Microfacet
             color: [1.0, 1.0, 1.0]
-            ior: 2.0
+            ior: 25
             roughness: 0.001
     meshes:
         - src: './../models/rock.obj'
@@ -33,7 +35,9 @@ scene:
           shader: 'shiny'
         - src: './../models/cornell_box/empty_box.obj'
           shader: 'blue_diffuse'
+          transformations:
+              - RotateY: -1.570796
     lights:
         - position: [0, 3.0, 1.5]
-          intensity: 100.0
+          intensity: 10.0
 
