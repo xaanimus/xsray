@@ -21,7 +21,7 @@ pub type UnitVec3 = UnitVector3<f32>;
 pub use self::cgmath::{Zero, One, Array, SquareMatrix,
                        InnerSpace, ElementWise, Matrix, ApproxEq};
 use self::cgmath::{Vector3, BaseFloat};
-use utilities::multi_math::{MultiNum, MultiNum1, Vec3OpsElem, Vec3Ops};
+use utilities::multi_math::{MultiNum, MultiNum1, Vec3OpsElem, Vec3Ops, MultiVec3, MultiUnitVec3};
 
 // misc functions ===============
 
@@ -58,7 +58,7 @@ pub trait AccurateOps {
 //UnitVec3 ======================
 
 #[derive(Debug, Clone)]
-pub struct UnitVector3<T: Vec3OpsElem> {
+pub struct UnitVector3<T: Vec3OpsElem + Copy> {
     val: Vector3<T>
 }
 
@@ -132,8 +132,8 @@ impl AccurateOps for Vec3 {
 //Ray ===========================
 
 pub struct RayBase<N: MultiNum> {
-    pub position: N::Vector3,
-    pub direction: N::UnitVector3,
+    pub position: MultiVec3<N>,
+    pub direction: MultiUnitVec3<N>,
     pub t_range: Range<N::Scalar>,
 }
 
@@ -148,7 +148,7 @@ impl<N: MultiNum> Clone for RayBase<N> {
 }
 
 impl<N: MultiNum> RayBase<N> {
-    pub fn new(position: N::Vector3, direction: N::UnitVector3) -> RayBase<N> {
+    pub fn new(position: MultiVec3<N>, direction: MultiUnitVec3<N>) -> RayBase<N> {
         RayBase {
             position: position,
             direction: direction,
@@ -156,7 +156,7 @@ impl<N: MultiNum> RayBase<N> {
         }
     }
 
-    pub fn new_epsilon_offset(position: N::Vector3, direction: N::UnitVector3) -> RayBase<N> {
+    pub fn new_epsilon_offset(position: MultiVec3<N>, direction: MultiUnitVec3<N>) -> RayBase<N> {
         let mut ray = RayBase::<N>::new(position, direction);
         ray.t_range.start = N::scalar_big_epsilon();
         ray
@@ -165,8 +165,8 @@ impl<N: MultiNum> RayBase<N> {
 
 impl<N> fmt::Debug for RayBase<N>
     where N: MultiNum,
-          N::Vector3: fmt::Debug,
-          N::UnitVector3: fmt::Debug,
+//          MultiVec3<N>: fmt::Debug,
+//          MultiUnitVec3<N>: fmt::Debug,
           N::Scalar: fmt::Debug
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

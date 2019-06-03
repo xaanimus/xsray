@@ -4,6 +4,7 @@ extern crate core;
 // TODO test this entire module
 
 use super::math::{Ray, Vec3};
+use super::cmp_util::CmpFn;
 
 use std::mem;
 use std::ops::{
@@ -13,7 +14,7 @@ use std::ops::{
 
 use utilities::multi_math::Sqrt;
 
-macro_rules! impl_simd {
+macro_rules! impl_simd_trait {
     {trait_name = $tn:ty, fnname = $fnname:ident, binop4 = $binop4:expr, binop8 = $binop8:expr} => {
         #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
         impl $tn for SimdFloat4 {
@@ -33,7 +34,7 @@ macro_rules! impl_simd {
     }
 }
 
-impl_simd! {
+impl_simd_trait! {
     trait_name = Div, fnname = div,
     binop4 = |a: SimdFloat4, b: SimdFloat4| unsafe { intrin::_mm_div_ps(a.0, b.0).into() },
     binop8 = |a: SimdFloat8, b: SimdFloat8| unsafe { intrin::_mm256_div_ps(a.0, b.0).into() }
@@ -63,6 +64,24 @@ pub struct Align32<T>(T);
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl SimdFloat4 {
+    pub fn new_bool_repeating(value: bool) -> SimdFloat4 {
+        SimdFloat4::new_bool(value, value, value, value)
+    }
+
+    pub fn new_bool(e0: bool, e1: bool, e2: bool, e3: bool) -> SimdFloat4 {
+        fn convert(bool_value : bool) -> f32 {
+            let int_value = if bool_value {-1i32} else {0i32};
+            unsafe {std::mem::transmute::<i32, f32>(int_value)}
+        }
+
+        SimdFloat4::new(
+            convert(e0),
+            convert(e1),
+            convert(e2),
+            convert(e3)
+        )
+    }
+
     pub fn new_repeating(elem: f32) -> SimdFloat4 {
         SimdFloat4::new(elem, elem, elem, elem)
     }
@@ -126,10 +145,72 @@ impl SimdFloat4 {
 
         result_vec.e0()
     }
+
+    pub fn abs(&self) -> SimdFloat4 {
+        unsafe {
+            let abs_mask = intrin::_mm_castsi128_ps(
+                intrin::_mm_srli_epi32(
+                    intrin::_mm_set1_epi32(-1),
+                    1
+                ));
+            intrin::_mm_and_ps(self.0, abs_mask).into()
+        }
+    }
+
+    pub fn apprx_eq(&self, other: SimdFloat4, epsilon: SimdFloat4) -> SimdFloat4 {
+        let diff = (*self - other).abs();
+        unsafe {
+            intrin::_mm_cmp_ps(
+                diff.0,
+                epsilon.0,
+                intrin::_CMP_LT_OQ
+            ).into()
+        }
+    }
+
+    pub fn test_all_true(&self) -> bool {
+        unsafe {
+            let all_ones = SimdFloat4::new_bool_repeating(true);
+            intrin::_mm_testc_ps(self.0, all_ones.0) == 1
+        }
+    }
+
+    pub fn cmp<Cmp: CmpFn>(&self, other: SimdFloat4) -> SimdFloat4 {
+        unsafe { intrin::_mm_cmp_ps(self.0, other.0, Cmp::CMP_CODE).into() }
+    }
+
+    pub fn bitwise_or(&self, other: SimdFloat4) -> SimdFloat4 {
+        unsafe { intrin::_mm_or_ps(self.0, other.0).into() }
+    }
 }
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl SimdFloat8 {
+    pub fn new_bool_repeating(value: bool) -> SimdFloat8 {
+        SimdFloat8::new_bool(value, value, value, value, value, value, value, value)
+    }
+
+    pub fn new_bool(
+        e0: bool, e1: bool, e2: bool, e3: bool,
+        e4: bool, e5: bool, e6: bool, e7: bool
+    ) -> SimdFloat8 {
+        fn convert(bool_value : bool) -> f32 {
+            let int_value = if bool_value {-1i32} else {0i32};
+            unsafe {std::mem::transmute::<i32, f32>(int_value)}
+        }
+
+        SimdFloat8::new(
+            convert(e0),
+            convert(e1),
+            convert(e2),
+            convert(e3),
+            convert(e4),
+            convert(e5),
+            convert(e6),
+            convert(e7)
+        )
+    }
+
     pub fn new_repeating(elem: f32) -> SimdFloat8 {
         SimdFloat8::new(elem, elem, elem, elem, elem, elem, elem, elem)
     }
@@ -157,6 +238,43 @@ impl SimdFloat8 {
         let mut result = Align32([0f32; 8]);
         self.store(&mut result);
         result.0
+    }
+
+    pub fn abs(&self) -> SimdFloat8 {
+        unsafe {
+            let abs_mask = intrin::_mm256_castsi256_ps(
+                intrin::_mm256_srli_epi32(
+                    intrin::_mm256_set1_epi32(-1),
+                    1
+                ));
+            intrin::_mm256_and_ps(self.0, abs_mask).into()
+        }
+    }
+
+    pub fn apprx_eq(&self, other: SimdFloat8, epsilon: SimdFloat8) -> SimdFloat8 {
+        let diff = (*self - other).abs();
+        unsafe {
+            intrin::_mm256_cmp_ps(
+                diff.0,
+                epsilon.0,
+                intrin::_CMP_LT_OQ
+            ).into()
+        }
+    }
+
+    pub fn test_all_true(&self) -> bool {
+        unsafe {
+            let all_ones = SimdFloat8::new_bool_repeating(true);
+            intrin::_mm256_testc_ps(self.0, all_ones.0) == 1
+        }
+    }
+
+    pub fn cmp<Cmp: CmpFn>(&self, other: SimdFloat8) -> SimdFloat8 {
+        unsafe { intrin::_mm256_cmp_ps(self.0, other.0, Cmp::CMP_CODE).into() }
+    }
+
+    pub fn bitwise_or(&self, other: SimdFloat8) -> SimdFloat8 {
+        unsafe { intrin::_mm256_or_ps(self.0, other.0).into() }
     }
 }
 
@@ -336,9 +454,10 @@ macro_rules! if_avx {
 #[cfg(test)]
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 mod tests {
+    use super::*;
+
     #[test]
     fn test_float4() {
-        use super::*;
 
         let test_vec = SimdFloat4::new(1.0, 2.0, 3.0, 4.0);
         let test_arr = test_vec.to_array();
@@ -374,8 +493,35 @@ mod tests {
     }
 
     #[test]
+    fn test_bool_ops() {
+        assert!(SimdFloat4::new_bool_repeating(true).test_all_true());
+        assert!(SimdFloat8::new_bool_repeating(true).test_all_true());
+
+        let false_simd4 = [
+            SimdFloat4::new_bool(false, true, true, true),
+            SimdFloat4::new_bool(false, false, true, true),
+            SimdFloat4::new_bool(false, false, false, false),
+            SimdFloat4::new_bool(false, false, false, true)
+        ];
+
+        let false_simd8 = [
+            SimdFloat8::new_bool_repeating(false),
+            SimdFloat8::new_bool(false, false, false, false, false, false, true, false),
+            SimdFloat8::new_bool(true, false, false, false, false, false, true, false),
+            SimdFloat8::new_bool(true, false, true, false, false, false, true, false),
+            SimdFloat8::new_bool(true, false, false, false, false, false, false, false),
+        ];
+
+        for elem in &false_simd4 {
+            assert!(!elem.test_all_true());
+        }
+        for elem in &false_simd8 {
+            assert!(!elem.test_all_true());
+        }
+    }
+
+    #[test]
     fn test_float8() {
-        use super::*;
         let test_vec = SimdFloat8::new(
             100.0, 0.0, 2.0, 3.0,
             4.0, 2.0, 2.0, 3.0);

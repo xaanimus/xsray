@@ -4,6 +4,7 @@
 extern crate serde_derive;
 extern crate serde_yaml;
 extern crate regex;
+extern crate cgmath;
 
 #[macro_use]
 mod utilities;

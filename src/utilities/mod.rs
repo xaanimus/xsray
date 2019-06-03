@@ -3,6 +3,7 @@
 #[macro_use]
 pub mod test_helpers;
 
+pub mod cmp_util;
 pub mod sampler;
 pub mod math;
 pub mod multi_math;
