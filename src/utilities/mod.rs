@@ -5,6 +5,7 @@ pub mod test_helpers;
 
 pub mod sampler;
 pub mod math;
+pub mod multi_math;
 pub mod color;
 #[macro_use]
 pub mod codable;

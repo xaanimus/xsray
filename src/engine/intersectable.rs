@@ -34,7 +34,7 @@ pub struct IntersectionArgs<'a> {
     #[cfg(target_feature = "avx")]
     pub ray: &'a SimdRay,
     #[cfg(not(target_feature = "avx"))]
-    pub ray: &'a RayUnit,
+    pub ray: &'a Ray,
     pub record: &'a mut IntersectionRecord,
     pub intersection_order: IntersectionOrderKind
 }

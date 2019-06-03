@@ -76,7 +76,7 @@ impl Scene {
         }
     }
 
-    fn intersect_intern(&self, ray: &RayUnit, obstruction_only: bool) -> IntersectionRecord {
+    fn intersect_intern(&self, ray: &Ray, obstruction_only: bool) -> IntersectionRecord {
         let index_ranges = self.intersection_accel.intersect_boxes(ray);
         let mut record = IntersectionRecord::no_intersection();
 
@@ -105,7 +105,7 @@ impl Scene {
         record
     }
 
-    pub fn intersect(&self, ray: &RayUnit) -> IntersectionRecord {
+    pub fn intersect(&self, ray: &Ray) -> IntersectionRecord {
         self.intersect_intern(ray, false)
     }
 
@@ -116,7 +116,7 @@ impl Scene {
         &self, origin: Vec3, destination: Vec3
     ) -> IntersectionRecord {
         let ray = {
-            let mut ray = RayUnit::new_epsilon_offset(origin, (destination - origin).unit());
+            let mut ray = Ray::new_epsilon_offset(origin, (destination - origin).unit());
             ray.t_range.end = (destination - origin).magnitude();
             ray
         };

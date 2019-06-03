@@ -84,8 +84,14 @@ impl Camera {
     pub fn look_at(&mut self, direction: &Vec3, non_ortho_up: &Vec3) {
         self.direction = direction.unit();
         self.basis.back = -self.direction.clone();
-        self.basis.right = non_ortho_up.unit().cross(self.basis.back.clone());
-        self.basis.up = self.basis.back.cross(self.basis.right.clone());
+        self.basis.right =
+            non_ortho_up.unit()
+                .cross(self.basis.back.clone())
+                .unit();
+        self.basis.up =
+            self.basis.back
+                .cross(self.basis.right.clone())
+                .unit();
     }
 
     pub fn direction(&self) -> &UnitVec3 {
@@ -95,11 +101,11 @@ impl Camera {
     /// shoots out ray corresponding to u and v coordinates.
     /// direction is normalized
     /// u and v should both be in the range [0,1] if the ray should be inside the camera's image
-    pub fn shoot_ray(&self, u: f32, v: f32) -> RayUnit {
+    pub fn shoot_ray(&self, u: f32, v: f32) -> Ray {
 
         let direction = self.direction.value() * self.plane_distance
             + ((u - 0.5) * self.basis.right.value() * self.plane_height)
             + ((v - 0.5) * self.basis.up.value() * self.plane_width);
-        RayUnit::new(self.position, direction.unit())
+        Ray::new(self.position, direction.unit())
     }
 }

@@ -250,7 +250,7 @@ impl BVHAccelerator {
     /// may intersect with the ray. Due to the way th bvh tree is build, the
     /// returned indices will already be sorted, so the caller can iterate through
     /// the objects in a way that benefits from cache locality
-    pub fn intersect_boxes(&self, ray: &RayUnit) -> Vec<Range<usize>> {
+    pub fn intersect_boxes(&self, ray: &Ray) -> Vec<Range<usize>> {
         let mut indices = Vec::<Range<usize>>::new();
         let aabb_ray = AABBIntersectionRay::new(ray);
         self.intersect_box_intern(&aabb_ray, &mut indices);

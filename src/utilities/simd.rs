@@ -3,13 +3,41 @@ extern crate core;
 // TODO clean up simd code in ::engine. try to minimize arch specific code
 // TODO test this entire module
 
-use super::math::{RayUnit, Vec3};
+use super::math::{Ray, Vec3};
 
 use std::mem;
 use std::ops::{
     Add, Sub, Mul,
-    Range, Neg
+    Range, Neg, Div
 };
+
+use utilities::multi_math::Sqrt;
+
+macro_rules! impl_simd {
+    {trait_name = $tn:ty, fnname = $fnname:ident, binop4 = $binop4:expr, binop8 = $binop8:expr} => {
+        #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+        impl $tn for SimdFloat4 {
+            type Output = SimdFloat4;
+            fn $fnname(self, rhs: SimdFloat4) -> SimdFloat4 {
+                $binop4(self, rhs)
+            }
+        }
+
+        #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+        impl $tn for SimdFloat8 {
+            type Output = SimdFloat8;
+            fn $fnname(self, rhs: SimdFloat8) -> SimdFloat8 {
+                $binop8(self, rhs)
+            }
+        }
+    }
+}
+
+impl_simd! {
+    trait_name = Div, fnname = div,
+    binop4 = |a: SimdFloat4, b: SimdFloat4| unsafe { intrin::_mm_div_ps(a.0, b.0).into() },
+    binop8 = |a: SimdFloat8, b: SimdFloat8| unsafe { intrin::_mm256_div_ps(a.0, b.0).into() }
+}
 
 #[cfg(target_arch = "x86_64")]
 pub use self::core::arch::x86_64 as intrin;
@@ -35,6 +63,10 @@ pub struct Align32<T>(T);
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl SimdFloat4 {
+    pub fn new_repeating(elem: f32) -> SimdFloat4 {
+        SimdFloat4::new(elem, elem, elem, elem)
+    }
+
     pub fn new(e0: f32, e1: f32, e2: f32, e3: f32) -> SimdFloat4 {
         // set_ps expects reverse order
         let simdvec = unsafe {intrin::_mm_set_ps(e3, e2, e1, e0)};
@@ -98,6 +130,10 @@ impl SimdFloat4 {
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl SimdFloat8 {
+    pub fn new_repeating(elem: f32) -> SimdFloat8 {
+        SimdFloat8::new(elem, elem, elem, elem, elem, elem, elem, elem)
+    }
+
     pub fn new(e0: f32, e1: f32, e2: f32, e3: f32, e4: f32, e5: f32, e6: f32, e7: f32) -> SimdFloat8 {
         // set_ps expects reverse order
         let simdvec = unsafe { intrin::_mm256_set_ps(e7, e6, e5, e4, e3, e2, e1, e0) };
@@ -200,6 +236,20 @@ impl Mul for SimdFloat8 {
 }
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+impl Sqrt for SimdFloat4 {
+    fn op_sqrt(&self) -> Self {
+        unsafe { intrin::_mm_sqrt_ps(self.0).into() }
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+impl Sqrt for SimdFloat8 {
+    fn op_sqrt(&self) -> Self {
+        unsafe { intrin::_mm256_sqrt_ps(self.0).into() }
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl From<__m128> for SimdFloat4 {
     fn from(item: __m128) -> Self {
         SimdFloat4(item)
@@ -252,7 +302,7 @@ pub struct SimdRay {
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl SimdRay {
-    pub fn new(ray: &RayUnit) -> SimdRay {
+    pub fn new(ray: &Ray) -> SimdRay {
         SimdRay {
             position: ray.position.into(),
             direction: (*ray.direction.value()).into(),

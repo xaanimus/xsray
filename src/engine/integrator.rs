@@ -95,7 +95,7 @@ pub struct UvPixelInfo {
 }
 
 pub trait Integrator: Debug {
-    fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3;
+    fn shade_ray(&self, ray: &Ray, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3;
     fn shade_camera_point(&self, scene: &Scene, u: f32, v: f32,
                           render_info: &UvPixelInfo) -> Color3;
 }
@@ -174,14 +174,14 @@ fn shade_path_interconnected(path: &Path) {
 ///in Path.intersections. It is not guaranteed that a ray from last intersection
 ///to the light sample is unobstructed
 ///Max bounces is >= 0
-fn trace_path(ray: &RayUnit, scene: &Scene, max_bounces: u32, sampler: &mut NumberSequenceSampler) -> Path {
+fn trace_path(ray: &Ray, scene: &Scene, max_bounces: u32, sampler: &mut NumberSequenceSampler) -> Path {
     let mut path = Path {
         start_position: ray.position,
         intersections: Vec::new(),
         light_sample: None
     };
 
-    let mut current_ray = ray.clone();
+    let mut current_ray: Ray = ray.clone();
     for _ in 0..(max_bounces + 1) {
         let record = scene.intersect(&current_ray);
         if !record.intersected() {
@@ -202,7 +202,7 @@ fn trace_path(ray: &RayUnit, scene: &Scene, max_bounces: u32, sampler: &mut Numb
             &record.normal.unit(),
             &current_ray.direction.neg(),
             sampler);
-        current_ray = RayBase::new_epsilon_offset(record.position, new_direction);
+        current_ray = Ray::new_epsilon_offset(record.position, new_direction);
     }
 
     //if there are intersections, connect path to a light
@@ -233,7 +233,7 @@ pub struct PathTracerIntegrator {
 }
 
 impl PathTracerIntegrator {
-    fn shade_ray_intern(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler, bounces: u32) -> Color3 {
+    fn shade_ray_intern(&self, ray: &Ray, scene: &Scene, sampler: &mut NumberSequenceSampler, bounces: u32) -> Color3 {
         let intersection = scene.intersect(ray);
         if !intersection.intersected() {
             return scene.background_color;
@@ -281,7 +281,7 @@ impl PathTracerIntegrator {
             let sample_pdf = shader.probability_of_sample(&normal, light_directions);
             let brdf_cos_value = shader.brdf_cosine_term(&normal, light_directions);
 
-            let sample_ray = RayUnit::new_epsilon_offset(intersection.position, incoming_dir.clone());
+            let sample_ray = Ray::new_epsilon_offset(intersection.position, incoming_dir.clone());
             let radiance = self.shade_ray_intern(&sample_ray, scene, sampler, bounces - 1);
 
             radiance.mul_element_wise(brdf_cos_value) / sample_pdf
@@ -293,7 +293,7 @@ impl PathTracerIntegrator {
 
 impl Integrator for PathTracerIntegrator {
 
-    fn shade_ray(&self, ray: &RayUnit, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3 {
+    fn shade_ray(&self, ray: &Ray, scene: &Scene, sampler: &mut NumberSequenceSampler) -> Color3 {
         let num_bounces = if self.max_bounces == 0 {
             0
         } else {

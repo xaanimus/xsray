@@ -129,7 +129,7 @@ pub struct AABBIntersectionRay {
 
 impl AABBIntersectionRay {
     #[cfg(target_feature = "avx")]
-    pub fn new(ray: &RayUnit) -> AABBIntersectionRay {
+    pub fn new(ray: &Ray) -> AABBIntersectionRay {
         let inverse_direction = Vec3::new(1.0, 1.0, 1.0)
             .div_element_wise(*ray.direction.value());
         AABBIntersectionRay {
@@ -147,7 +147,7 @@ impl AABBIntersectionRay {
     }
 
     #[cfg(not(target_feature = "avx"))]
-    pub fn new(ray: &RayUnit) -> AABBIntersectionRay {
+    pub fn new(ray: &Ray) -> AABBIntersectionRay {
         let inverse_direction = Vec3::new(1.0, 1.0, 1.0)
             .div_element_wise(*ray.direction.value());
         AABBIntersectionRay {
