@@ -80,9 +80,9 @@ impl Scene {
         let index_ranges = self.intersection_accel.intersect_boxes(ray);
         let mut record = IntersectionRecord::no_intersection();
 
-        #[cfg(target_feature = "avx")]
-        let intersection_ray = &SimdRay::new(ray);
-        #[cfg(not(target_feature = "avx"))]
+//        #[cfg(target_feature = "avx")]
+//        let intersection_ray = &SimdRay::new(ray);
+//        #[cfg(not(target_feature = "avx"))]
         let intersection_ray = ray;
 
         'outer: for range in index_ranges {

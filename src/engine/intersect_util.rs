@@ -12,11 +12,20 @@ pub struct IntersectionResult<N: MultiNum> {
 }
 
 impl<N: MultiNum> IntersectionResult<N> {
+    pub fn new() -> IntersectionResult<N> {
+        IntersectionResult {
+            t: N::scalar_inf(),
+            beta: N::scalar_inf(),
+            gamma: N::scalar_inf()
+        }
+    }
+
     pub fn alpha(&self) -> N::Scalar {
         N::scalar_one() - self.beta - self.gamma
     }
 }
 
+// TODO refactor return IntersectionResult & benchmark
 #[inline]
 pub fn intersect_triangle<N: MultiNum>(
     ray: &RayBase<N>,
@@ -39,8 +48,8 @@ pub fn intersect_triangle<N: MultiNum>(
     let u = f * s.op_dot(h);
 
     let u_lt_zero = N::scalar_cmp::<cmp::Lt>(u, N::scalar_zero());
-    let u_gt_zero = N::scalar_cmp::<cmp::Gt>(u, N::scalar_zero());
-    let u_out_of_bounds = N::bool_or(u_lt_zero, u_gt_zero);
+    let u_gt_one = N::scalar_cmp::<cmp::Gt>(u, N::scalar_one());
+    let u_out_of_bounds = N::bool_or(u_lt_zero, u_gt_one);
     if N::all_true(u_out_of_bounds) {
         return N::create_bool_repeating(false)
     }
@@ -54,11 +63,11 @@ pub fn intersect_triangle<N: MultiNum>(
         return N::create_bool_repeating(false)
     }
 
-    let n = edge1.op_cross(*edge2);
+    let n = edge1.op_cross(*edge2).op_normalized();
     let t = (-s).op_dot(n) / ray.direction.value().op_dot(n);
     let t_lt_range_start = N::scalar_cmp::<cmp::Lt>(t, ray.t_range.start);
-    let t_lte_range_end = N::scalar_cmp::<cmp::Lte>(t, ray.t_range.end);
-    let t_out_of_bounds = N::bool_or(t_lt_range_start, t_lte_range_end);
+    let t_gte_range_end = N::scalar_cmp::<cmp::Gte>(t, ray.t_range.end);
+    let t_out_of_bounds = N::bool_or(t_lt_range_start, t_gte_range_end);
     if N::all_true(t_out_of_bounds) {
         return N::create_bool_repeating(false)
     }
@@ -73,5 +82,5 @@ pub fn intersect_triangle<N: MultiNum>(
         N::bool_or(t_out_of_bounds,
                    N::bool_or(u_out_of_bounds, uv_out_of_bounds));
 
-    is_invalid_intersection
+    N::bool_not(is_invalid_intersection)
 }

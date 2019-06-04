@@ -19,11 +19,8 @@ use std::rc::Rc;
 use std::f32;
 
 use self::cgmath::Transform;
-
-//TODO this file into
-//intersectable.rs
-//transformable.rs
-//triangle.rs
+use engine::intersect_util::IntersectionResult;
+use utilities::multi_math::MultiNum1;
 
 pub enum IntersectionOrderKind {
     FirstIntersection,
@@ -31,9 +28,9 @@ pub enum IntersectionOrderKind {
 }
 
 pub struct IntersectionArgs<'a> {
-    #[cfg(target_feature = "avx")]
-    pub ray: &'a SimdRay,
-    #[cfg(not(target_feature = "avx"))]
+//    #[cfg(target_feature = "avx")]
+//    pub ray: &'a SimdRay,
+//    #[cfg(not(target_feature = "avx"))]
     pub ray: &'a Ray,
     pub record: &'a mut IntersectionRecord,
     pub intersection_order: IntersectionOrderKind
@@ -138,7 +135,7 @@ impl HasSurfaceArea for TriangleWithAABoundingBox {
 }
 
 #[derive(Debug)]
-#[cfg(not(target_feature = "avx"))]
+//#[cfg(not(target_feature = "avx"))]
 pub struct IntersectableTriangle {
     triangle: Rc<Triangle>,
     position_0: Vec3,
@@ -146,17 +143,17 @@ pub struct IntersectableTriangle {
     edge2: Vec3
 }
 
-#[derive(Debug)]
-#[cfg(target_feature = "avx")]
-pub struct IntersectableTriangle {
-    triangle: Rc<Triangle>,
-    position_0: SimdFloat4,
-    edge1: SimdFloat4,
-    edge2: SimdFloat4,
-}
+//#[derive(Debug)]
+//#[cfg(target_feature = "avx")]
+//pub struct IntersectableTriangle {
+//    triangle: Rc<Triangle>,
+//    position_0: SimdFloat4,
+//    edge1: SimdFloat4,
+//    edge2: SimdFloat4,
+//}
 
 impl IntersectableTriangle {
-    #[cfg(not(target_feature = "avx"))]
+//    #[cfg(not(target_feature = "avx"))]
     pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
         let triangle_ptr = Rc::new(triangle.clone());
         let edge1 = triangle.positions[1].accurate_subtraction(&triangle.positions[0]);
@@ -169,83 +166,55 @@ impl IntersectableTriangle {
         }
     }
 
-    #[cfg(target_feature = "avx")]
-    pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
-        let triangle_ptr = Rc::new(triangle.clone());
-        let edge1 = triangle.positions[1].accurate_subtraction(&triangle.positions[0]);
-        let edge2 = triangle.positions[2].accurate_subtraction(&triangle.positions[0]);
-        IntersectableTriangle {
-            triangle: triangle_ptr,
-            position_0: triangle.positions[0].into(),
-            edge1: edge1.into(),
-            edge2: edge2.into(),
-        }
-    }
+//    #[cfg(target_feature = "avx")]
+//    pub fn new_from_triangle(triangle: &Triangle) -> IntersectableTriangle {
+//        let triangle_ptr = Rc::new(triangle.clone());
+//        let edge1 = triangle.positions[1].accurate_subtraction(&triangle.positions[0]);
+//        let edge2 = triangle.positions[2].accurate_subtraction(&triangle.positions[0]);
+//        IntersectableTriangle {
+//            triangle: triangle_ptr,
+//            position_0: triangle.positions[0].into(),
+//            edge1: edge1.into(),
+//            edge2: edge2.into(),
+//        }
+//    }
 
 }
 
 impl Intersectable for IntersectableTriangle {
     // TODO consider creating a simd version of this SoA style and benchmark
     fn intersect(&self, args: IntersectionArgs) -> bool {
+        use super::intersect_util;
+
         let ray = args.ray;
         let record = args.record;
-
-        let ray_normalized_direction = if_avx!(
-            avx = ray.direction,
-            noavx = *ray.direction.value()
-        );
-
-        let cross = if_avx!(
-            avx = |a: SimdFloat4, b| a.vec3_cross(b),
-            noavx = |a: Vec3, b| a.cross(b)
-        );
-
-        let dot = if_avx! (
-            avx = |a: SimdFloat4, b| a.vec3_dot(b),
-            noavx = |a: Vec3, b| a.dot(b)
-        );
 
         let edge1 = self.edge1;
         let edge2 = self.edge2;
 
-        let h = cross(ray_normalized_direction, edge2);
-        let a = dot(edge1, h);
-
-        if apprx_eq(a, 0.0, f32::EPSILON) {
-            return false;
-        }
-
-        let f = 1.0 / a;
-        let s = ray.position - self.position_0;
-
-        let u = f * dot(s, h);
-
-        if u < 0.0 || u > 1.0 {
-            return false;
-        }
-
-        let q = cross(s, edge1);
-        let v = f * dot(ray_normalized_direction, q);
-        if v < 0.0 || u + v > 1.0 {
-            return false;
-        }
-
-        //let t = f * dot(edge2, q);
-        let n = cross(edge1, edge2);
-        let t = dot(-s, n) / dot(ray_normalized_direction, n);
-        if t < ray.t_range.start || ray.t_range.end <= t || t >= record.t {
-            return false;
-        }
-
-        let beta = u;
-        let gamma = v;
-        let alpha = 1.0 - beta - gamma;
-        let t_multiplier = if_avx!(
-            avx = SimdFloat4::new(t,t,t,t),
-            noavx = t
+        let mut intersect_result = IntersectionResult::new();
+        let intersected = intersect_util::intersect_triangle::<MultiNum1>(
+            args.ray,
+            &mut intersect_result,
+            &self.position_0,
+            &self.edge1,
+            &self.edge2
         );
 
-        let position = (ray.position + t_multiplier * ray_normalized_direction).into();
+        if !intersected {
+            return false
+        }
+
+        if record.t < intersect_result.t {
+            return false
+        }
+
+        let beta = intersect_result.beta;
+        let gamma = intersect_result.gamma;
+        let alpha = intersect_result.alpha();
+        let t = intersect_result.t;
+
+        let position = (ray.position + t * ray.direction.value()).into();
 
         *record = IntersectionRecord {
             position,
@@ -255,7 +224,7 @@ impl Intersectable for IntersectableTriangle {
             t: t,
             shader: Some(self.triangle.shader.clone())
         };
-        return true;
+        return true
     }
 
 }

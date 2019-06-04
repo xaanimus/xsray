@@ -124,6 +124,7 @@ pub trait MultiNum {
 
     fn create_bool_repeating(value: bool) -> Self::Bool;
     fn bool_or(a: Self::Bool, b: Self::Bool) -> Self::Bool;
+    fn bool_not(a: Self::Bool) -> Self::Bool;
 }
 
 pub struct MultiNum1;
@@ -155,6 +156,10 @@ impl MultiNum for MultiNum1 {
 
     fn bool_or(a: Self::Bool, b: Self::Bool) -> Self::Bool {
         a || b
+    }
+
+    fn bool_not(a: Self::Bool) -> Self::Bool {
+        !a
     }
 }
 
@@ -190,6 +195,10 @@ impl MultiNum for MultiNum4 {
     fn bool_or(a: Self::Bool, b: Self::Bool) -> Self::Bool {
         a.bitwise_or(b)
     }
+
+    fn bool_not(a: Self::Bool) -> Self::Bool {
+        !a
+    }
 }
 
 #[cfg(target_feature = "avx")]
@@ -223,6 +232,10 @@ impl MultiNum for MultiNum8 {
 
     fn bool_or(a: Self::Bool, b: Self::Bool) -> Self::Bool {
         a.bitwise_or(b)
+    }
+
+    fn bool_not(a: Self::Bool) -> Self::Bool {
+        !a
     }
 }
 

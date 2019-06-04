@@ -9,7 +9,7 @@ use super::cmp_util::CmpFn;
 use std::mem;
 use std::ops::{
     Add, Sub, Mul,
-    Range, Neg, Div
+    Range, Neg, Div, Not
 };
 
 use utilities::multi_math::Sqrt;
@@ -31,13 +31,40 @@ macro_rules! impl_simd_trait {
                 $binop8(self, rhs)
             }
         }
-    }
+    };
+    {trait_name = $tn:ty, fnname = $fnname:ident, unop4 = $unop4:expr, unop8 = $unop8:expr} => {
+        #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+        impl $tn for SimdFloat4 {
+            type Output = SimdFloat4;
+            fn $fnname(self) -> SimdFloat4 {
+                $unop4(self)
+            }
+        }
+
+        #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
+        impl $tn for SimdFloat8 {
+            type Output = SimdFloat8;
+            fn $fnname(self) -> SimdFloat8 {
+                $unop8(self)
+            }
+        }
+    };
 }
 
 impl_simd_trait! {
     trait_name = Div, fnname = div,
     binop4 = |a: SimdFloat4, b: SimdFloat4| unsafe { intrin::_mm_div_ps(a.0, b.0).into() },
     binop8 = |a: SimdFloat8, b: SimdFloat8| unsafe { intrin::_mm256_div_ps(a.0, b.0).into() }
+}
+
+impl_simd_trait! {
+    trait_name = Not, fnname = not,
+    unop4 = |a: SimdFloat4| unsafe {
+        intrin::_mm_andnot_ps(a.0, SimdFloat4::new_bool_repeating(true).0).into()
+    },
+    unop8 = |a: SimdFloat8| unsafe {
+        intrin::_mm256_andnot_ps(a.0, SimdFloat8::new_bool_repeating(true).0).into()
+    }
 }
 
 #[cfg(target_arch = "x86_64")]
