@@ -3,7 +3,7 @@ use super::utilities::math;
 use super::utilities::color;
 
 mod intersectable;
-mod multi_triangle;
+mod intersect_util;
 mod transformable;
 
 mod bvh;

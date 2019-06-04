@@ -75,9 +75,3 @@ pub fn intersect_triangle<N: MultiNum>(
 
     is_invalid_intersection
 }
-
-pub struct MultiTriangle<N: MultiNum> {
-    position0: MultiVec3<N>,
-    edge1: MultiVec3<N>,
-    edge2: MultiVec3<N>
-}
