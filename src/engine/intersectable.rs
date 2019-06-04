@@ -192,16 +192,15 @@ impl Intersectable for IntersectableTriangle {
         let edge1 = self.edge1;
         let edge2 = self.edge2;
 
-        let mut intersect_result = IntersectionResult::new();
-        let intersected = intersect_util::intersect_triangle::<MultiNum1>(
-            args.ray,
-            &mut intersect_result,
-            &self.position_0,
-            &self.edge1,
-            &self.edge2
-        );
+        let intersect_result =
+            intersect_util::intersect_triangle::<MultiNum1>(
+                args.ray,
+                &self.position_0,
+                &self.edge1,
+                &self.edge2
+            );
 
-        if !intersected {
+        if !intersect_result.intersected() {
             return false
         }
 

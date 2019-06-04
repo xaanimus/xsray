@@ -209,6 +209,15 @@ impl SimdFloat4 {
     pub fn bitwise_or(&self, other: SimdFloat4) -> SimdFloat4 {
         unsafe { intrin::_mm_or_ps(self.0, other.0).into() }
     }
+
+    pub fn conditional_set(&self, value_true: SimdFloat4, value_false: SimdFloat4) -> SimdFloat4 {
+        unsafe {
+            intrin::_mm_or_ps(
+                intrin::_mm_and_ps(self.0, value_true.0),
+                intrin::_mm_andnot_ps(self.0, value_false.0)
+            ).into()
+        }
+    }
 }
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
@@ -302,6 +311,15 @@ impl SimdFloat8 {
 
     pub fn bitwise_or(&self, other: SimdFloat8) -> SimdFloat8 {
         unsafe { intrin::_mm256_or_ps(self.0, other.0).into() }
+    }
+
+    pub fn conditional_set(&self, value_true: SimdFloat8, value_false: SimdFloat8) -> SimdFloat8 {
+        unsafe {
+            intrin::_mm256_or_ps(
+                intrin::_mm256_and_ps(self.0, value_true.0),
+                intrin::_mm256_andnot_ps(self.0, value_false.0)
+            ).into()
+        }
     }
 }
 

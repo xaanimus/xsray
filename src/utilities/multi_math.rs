@@ -119,6 +119,9 @@ pub trait MultiNum {
 
     fn scalar_apprx_eq(a: Self::Scalar, b: Self::Scalar, epsilon: Self::Scalar) -> Self::Bool;
     fn scalar_cmp<Cmp: CmpFn>(a: Self::Scalar, b: Self::Scalar) -> Self::Bool;
+    fn scalar_conditional_set(
+        cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
+    ) -> Self::Scalar;
 
     fn all_true(value: Self::Bool) -> bool;
 
@@ -144,6 +147,16 @@ impl MultiNum for MultiNum1 {
 
     fn scalar_cmp<Cmp: CmpFn>(a: Self::Scalar, b: Self::Scalar) -> Self::Bool {
         Cmp::apply_f32(a, b)
+    }
+
+    fn scalar_conditional_set(
+        cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
+    ) -> Self::Scalar {
+        if cond {
+            value_true
+        } else {
+            value_false
+        }
     }
 
     fn all_true(value: Self::Bool) -> bool {
@@ -184,6 +197,12 @@ impl MultiNum for MultiNum4 {
         a.cmp::<Cmp>(b)
     }
 
+    fn scalar_conditional_set(
+        cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
+    ) -> Self::Scalar {
+        cond.conditional_set(value_true, value_false)
+    }
+
     fn all_true(value: Self::Bool) -> bool {
         value.test_all_true()
     }
@@ -220,6 +239,12 @@ impl MultiNum for MultiNum8 {
 
     fn scalar_cmp<Cmp: CmpFn>(a: Self::Scalar, b: Self::Scalar) -> Self::Bool {
         a.cmp::<Cmp>(b)
+    }
+
+    fn scalar_conditional_set(
+        cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
+    ) -> Self::Scalar {
+        cond.conditional_set(value_true, value_false)
     }
 
     fn all_true(value: Self::Bool) -> bool {

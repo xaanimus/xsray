@@ -42,6 +42,11 @@ pub mod cmp {
         opfn = |a, b| a >= b,
         intrin_cmp = intrin::_CMP_GE_OQ
     );
+    impl_cmp_fn!(
+        Eq,
+        opfn = |a, b| a == b,
+        intrin_cmp = intrin::_CMP_EQ_OQ
+    );
 }
 
 //#[derive(Clone, Copy, Debug)]
