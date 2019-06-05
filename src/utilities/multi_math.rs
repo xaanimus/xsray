@@ -7,6 +7,7 @@ use utilities::simd::{SimdFloat4, SimdFloat8, Align16, Align32};
 use utilities::math;
 use self::cgmath::Vector3;
 use utilities::math::{apprx_eq, Vec3};
+use std::fmt::Debug;
 
 pub trait Sqrt {
     fn op_sqrt(&self) -> Self;
@@ -105,9 +106,9 @@ impl<T: Vec3OpsElem + Copy> Vec3Ops<T> for cgmath::Vector3<T>
 pub type MultiVec3<N> = cgmath::Vector3<<N as MultiNum>::Scalar>;
 pub type MultiUnitVec3<N> = math::UnitVector3<<N as MultiNum>::Scalar>;
 
-pub trait MultiNum {
-    type Scalar: Copy + Vec3OpsElem;
-    type Bool: Copy;
+pub trait MultiNum: Debug {
+    type Scalar: Copy + Vec3OpsElem + Debug;
+    type Bool: Copy + Debug;
 
     const SIZE: u32;
 
@@ -145,6 +146,7 @@ pub trait MultiNum {
     fn bool_not(a: Self::Bool) -> Self::Bool;
 }
 
+#[derive(Debug)]
 pub struct MultiNum1;
 impl MultiNum for MultiNum1 {
     type Scalar = f32;
@@ -209,6 +211,7 @@ impl MultiNum for MultiNum1 {
 }
 
 #[cfg(target_feature = "sse2")]
+#[derive(Debug)]
 pub struct MultiNum4;
 #[cfg(target_feature = "sse2")]
 impl MultiNum for MultiNum4 {
@@ -285,6 +288,7 @@ impl MultiNum for MultiNum4 {
 }
 
 #[cfg(target_feature = "avx")]
+#[derive(Debug)]
 pub struct MultiNum8;
 #[cfg(target_feature = "avx")]
 impl MultiNum for MultiNum8 {

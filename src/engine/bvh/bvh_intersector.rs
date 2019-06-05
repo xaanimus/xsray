@@ -1,3 +1,4 @@
+use utilities::math;
 use utilities::math::{Range, RayBase};
 use utilities::multi_math::{MultiNum, MultiVec3, MultiNum1};
 use engine::intersectable::Triangle;
@@ -16,7 +17,7 @@ impl GenericIntersectionResult for TriangleIntersectionResult<MultiNum1> {
     }
 }
 
-trait Intersector<Primitive, N: MultiNum> {
+pub trait Intersector<Primitive, N: MultiNum> {
     type IntersectionOutput: GenericIntersectionResult;
 
     fn new(bvh_to_parent_idx: &[usize], primitives: &[Primitive]) -> Self;
@@ -27,7 +28,8 @@ trait Intersector<Primitive, N: MultiNum> {
     fn intersect(&self, ray: &RayBase<N>, bvh_index_range: Range<usize>) -> Self::IntersectionOutput;
 }
 
-struct TriangleIntersector<N: MultiNum> {
+#[derive(Debug)]
+pub struct TriangleIntersector<N: MultiNum> {
     position: Vec<MultiVec3<N>>,
     edge1: Vec<MultiVec3<N>>,
     edge2: Vec<MultiVec3<N>>
@@ -58,13 +60,19 @@ impl<N: MultiNum> Intersector<Triangle, N> for TriangleIntersector<N> {
     fn intersect(&self, ray: &RayBase<N>, bvh_index_range: Range<usize>) -> Self::IntersectionOutput {
         let mut closest_intersection =
             TriangleIntersectionResult::<N>::new_no_intersection();
-        for bvh_idx in bvh_index_range {
-            let candidate_intersection = intersect_util::intersect_triangle::<N>(
-                ray,
-                &self.position[bvh_idx],
-                &self.edge1[bvh_idx],
-                &self.edge2[bvh_idx]
-            );
+
+        let i_start_bin = bvh_index_range.start / 4;
+        let i_end_bin =
+            math::integral_ceiling_divide(bvh_index_range.end, N::SIZE as usize);
+
+        for bvh_idx in i_start_bin..i_end_bin{
+            let candidate_intersection =
+                intersect_util::intersect_triangle::<N>(
+                    ray,
+                    &self.position[bvh_idx],
+                    &self.edge1[bvh_idx],
+                    &self.edge2[bvh_idx]
+                );
 
             let candidate_lt_closest=
                 N::scalar_cmp::<cmp::Lt>(candidate_intersection.t, closest_intersection.t);

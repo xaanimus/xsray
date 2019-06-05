@@ -2,6 +2,7 @@ extern crate time;
 
 use super::aabb::*;
 use super::splitter::*;
+use super::bvh_intersector;
 
 use std::f32;
 use std::cmp::Ordering;
@@ -16,6 +17,8 @@ use utilities::simd::{
     SimdFloat8
 };
 
+use utilities::multi_math::MultiNum8;
+
 /// Bounded Volume Hierarchy Accelerator
 /// Each subtree can be represented by a slice of BVHAcceleratorNode objects
 /// the first element in the slice is the root node, with the bounding box for
@@ -23,6 +26,7 @@ use utilities::simd::{
 #[derive(Debug)]
 pub struct BVHAccelerator {
     nodes: Vec<BVHTree>
+    //intersector: bvh_intersector::TriangleIntersector<MultiNum8>
 }
 
 #[derive(Debug, Clone)]
@@ -62,12 +66,33 @@ impl GenericStatistics {
     }
 }
 
+fn sort_objects_by_bbox_center<T, FGetAABB, FGetCoordinate>(
+    objects: &mut [T], get_aabb: FGetAABB, get_coord: FGetCoordinate
+) where FGetAABB: Fn(&T) -> AABoundingBox,
+        FGetCoordinate: Fn(Vec3) -> f32
+{
+    objects.sort_by(|a: &T, b: &T| {
+        let center_a = get_aabb(a).get_bounding_box_center();
+        let center_b = get_aabb(b).get_bounding_box_center();
+        if get_coord(center_a) > get_coord(center_b) {
+            Ordering::Greater
+        } else {
+            Ordering::Less
+        }
+    });
+}
+
 impl BVHAccelerator {
     pub fn new<T: HasAABoundingBox + HasSurfaceArea>(objects: &mut [T]) -> BVHAccelerator {
         let start_time = time::precise_time_s();
 
         let mut tree = Vec::<BVHTree>::new();
-        let num_nodes = BVHAccelerator::build_tree(&mut tree, 0, objects, 0);
+        let num_nodes = BVHAccelerator::build_tree(
+            &mut tree, 0,
+            objects, 0,
+            |object| object.aa_bounding_box_ref().clone(),
+            |object| object.surface_area()
+        );
 
         let end_time = time::precise_time_s();
         println!("bvh build time: {}s", end_time - start_time);
@@ -88,11 +113,16 @@ impl BVHAccelerator {
     }
 
     /// returns number of nodes in built tree
-    fn build_tree<T: HasAABoundingBox + HasSurfaceArea> (
+    fn build_tree<T, FGetBoundingBox, FGetSurfaceArea>(
         tree_nodes: &mut Vec<BVHTree>, tree_index: usize,
-        objects: &mut [T], start_index: usize
-    ) -> usize {
-        let objects_bbox = get_aa_bounding_box(objects);
+        objects: &mut [T], start_index_objects: usize,
+        get_bounding_box: FGetBoundingBox,
+        get_surface_area: FGetSurfaceArea
+    ) -> usize
+    where FGetBoundingBox: Copy + Fn(&T) -> AABoundingBox,
+          FGetSurfaceArea: Copy + Fn(&T) -> f32
+    {
+        let objects_bbox = get_list_aabb_by(objects, &get_bounding_box);
 
         if objects.len() == 0 {
             return 0;
@@ -107,32 +137,13 @@ impl BVHAccelerator {
 
         //sort objects
         if x_is_largest {
-            objects.sort_by(|a: &T, b: &T| {
-                if a.get_bounding_box_center().x > b.get_bounding_box_center().x {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                }
-            })
+            sort_objects_by_bbox_center(objects, get_bounding_box, |v| v.x);
         } else if y_is_largest {
-            objects.sort_by(|a: &T, b: &T| {
-                if a.get_bounding_box_center().y > b.get_bounding_box_center().y {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                }
-            })
+            sort_objects_by_bbox_center(objects, get_bounding_box, |v| v.y);
         } else {
-            objects.sort_by(|a: &T, b: &T| {
-                if a.get_bounding_box_center().z > b.get_bounding_box_center().z {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                }
-            })
-        };
+            sort_objects_by_bbox_center(objects, get_bounding_box, |v| v.z);
+        }
 
-//        let splitter = MedianIndexSplitter {num_objects_in_leaf: 1};
         let splitter = SAHSubdivideGuessSplitter {
             number_of_subdivs: 50,
             sah_consts: SAHConstants {
@@ -140,7 +151,7 @@ impl BVHAccelerator {
                 cost_triangle_intersection: 0.6
             }
         };
-        let m = splitter.get_spliting_index(objects);
+        let m = splitter.get_spliting_index(objects, &get_bounding_box, &get_surface_area);
 
         ensure_idx_exists(tree_nodes, tree_index, BVHTree::Node {
             number_of_nodes: 1,
@@ -149,8 +160,8 @@ impl BVHAccelerator {
 
         if m == 0 {
             tree_nodes[tree_index] = BVHTree::Leaf {
-                start: start_index,
-                end: start_index + objects.len(),
+                start: start_index_objects,
+                end: start_index_objects + objects.len(),
                 wrapper: objects_bbox
             };
             return 1;
@@ -158,11 +169,18 @@ impl BVHAccelerator {
             let (left_objects, right_objects) = objects.split_at_mut(m);
             //left sub tree first
             let num_nodes_in_left =
-                BVHAccelerator::build_tree(tree_nodes, tree_index + 1, left_objects, start_index);
+                BVHAccelerator::build_tree(
+                    tree_nodes, tree_index + 1,
+                    left_objects, start_index_objects,
+                    get_bounding_box, get_surface_area
+                );
             //right sub tree
             let num_nodes_in_right =
-                BVHAccelerator::build_tree(tree_nodes, tree_index + 1 + num_nodes_in_left,
-                                           right_objects, start_index + m);
+                BVHAccelerator::build_tree(
+                    tree_nodes, tree_index + 1 + num_nodes_in_left,
+                    right_objects, start_index_objects + m,
+                    get_bounding_box, get_surface_area
+                );
             let num_nodes = 1 + num_nodes_in_right + num_nodes_in_left;
             tree_nodes[tree_index] = BVHTree::Node {
                 number_of_nodes: num_nodes_in_left + num_nodes_in_right + 1,

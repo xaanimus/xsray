@@ -1,7 +1,7 @@
 
 extern crate cgmath;
 
-pub use std::ops::{Neg, Range};
+pub use std::ops::{Add, Sub, Div, Neg, Range};
 use std::f32;
 use std::fmt;
 use super::multi_math;
@@ -24,6 +24,12 @@ use self::cgmath::{Vector3, BaseFloat};
 use utilities::multi_math::{MultiNum, MultiNum1, Vec3OpsElem, Vec3Ops, MultiVec3, MultiUnitVec3};
 
 // misc functions ===============
+
+#[inline]
+pub fn integral_ceiling_divide(a: usize, b: usize) -> usize
+{
+    (a + b - 1) / b
+}
 
 pub fn clamp_i32(x: i32) -> u32 {
     x.max(0) as u32

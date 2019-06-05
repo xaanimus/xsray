@@ -208,14 +208,20 @@ impl HasAABoundingBox for AABoundingBox {
     }
 }
 
-pub fn get_aa_bounding_box<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
+pub fn get_list_aabb_by<T, F: Fn(&T) -> AABoundingBox>(
+    elems: &[T], get_bbox: F
+) -> AABoundingBox {
     let mut full_bounding_box = AABoundingBox::empty();
-    for ref elem in elems {
-        let bbox: &AABoundingBox = (*elem).aa_bounding_box_ref();
+    for elem in elems {
+        let bbox = get_bbox(elem);
         full_bounding_box.lower = full_bounding_box.lower.min_elem_wise(&bbox.lower);
         full_bounding_box.upper = full_bounding_box.upper.max_elem_wise(&bbox.upper);
     }
     full_bounding_box
+}
+
+pub fn get_list_aabb<T: HasAABoundingBox>(elems: &[T]) -> AABoundingBox {
+    get_list_aabb_by(elems, |elem| elem.aa_bounding_box_ref().clone())
 }
 
 #[cfg(test)]
