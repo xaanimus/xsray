@@ -4,6 +4,8 @@ use utilities::math::RayBase;
 use utilities::cmp_util::{CmpFn, cmp};
 use cgmath::InnerSpace;
 
+pub type TriangleIntersectionResult<N> = IntersectionResult<N>;
+
 #[derive(Clone, Debug)]
 pub struct IntersectionResult<N: MultiNum> {
     pub t: N::Scalar,

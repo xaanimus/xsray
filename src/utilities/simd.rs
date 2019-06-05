@@ -83,11 +83,11 @@ pub struct SimdFloat8(__m256);
 
 #[derive(Debug, Clone, Copy)]
 #[repr(align(16))]
-pub struct Align16<T>(T);
+pub struct Align16<T>(pub T);
 
 #[derive(Debug, Clone, Copy)]
 #[repr(align(32))]
-pub struct Align32<T>(T);
+pub struct Align32<T>(pub T);
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx"))]
 impl SimdFloat4 {
@@ -117,6 +117,11 @@ impl SimdFloat4 {
         // set_ps expects reverse order
         let simdvec = unsafe {intrin::_mm_set_ps(e3, e2, e1, e0)};
         SimdFloat4(simdvec)
+    }
+
+    pub fn new_load(buffer: &Align16<[f32; 4]>) -> SimdFloat4 {
+        let ptr = buffer.0.as_ptr();
+        unsafe { intrin::_mm_load_ps(ptr).into() }
     }
 
     pub fn store(&self, buffer: &mut Align16<[f32; 4]>) {
@@ -255,6 +260,11 @@ impl SimdFloat8 {
         // set_ps expects reverse order
         let simdvec = unsafe { intrin::_mm256_set_ps(e7, e6, e5, e4, e3, e2, e1, e0) };
         SimdFloat8(simdvec)
+    }
+
+    pub fn new_load(buffer: &Align32<[f32; 8]>) -> SimdFloat8 {
+        let ptr = buffer.0.as_ptr();
+        unsafe { intrin::_mm256_load_ps(ptr).into() }
     }
 
     pub fn m256(&self) -> __m256 {

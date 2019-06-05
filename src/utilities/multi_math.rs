@@ -3,12 +3,10 @@ extern crate cgmath;
 use std::f32;
 use std::ops::{Add, Mul, Neg, Div, Sub};
 use utilities::cmp_util::CmpFn;
-use utilities::simd::{
-    SimdFloat4, SimdFloat8
-};
+use utilities::simd::{SimdFloat4, SimdFloat8, Align16, Align32};
 use utilities::math;
 use self::cgmath::Vector3;
-use utilities::math::apprx_eq;
+use utilities::math::{apprx_eq, Vec3};
 
 pub trait Sqrt {
     fn op_sqrt(&self) -> Self;
@@ -111,6 +109,21 @@ pub trait MultiNum {
     type Scalar: Copy + Vec3OpsElem;
     type Bool: Copy;
 
+    const SIZE: u32;
+
+    fn new_vec3_from_iter<It: Iterator<Item = Vec3>>(it: &mut It, default_num: f32) -> MultiVec3<Self>;
+    fn new_vec3_array_from_iter<It: Iterator<Item = Vec3>>(
+        mut it: It, default_num: f32
+    ) -> Vec<MultiVec3<Self>> {
+        let mut result = Vec::new();
+
+        let mut peekable = it.peekable();
+        while peekable.next().is_some() {
+            result.push(Self::new_vec3_from_iter(&mut peekable, default_num));
+        }
+        result
+    }
+
     fn scalar_zero() -> Self::Scalar;
     fn scalar_one() -> Self::Scalar;
     fn scalar_inf() -> Self::Scalar;
@@ -122,6 +135,8 @@ pub trait MultiNum {
     fn scalar_conditional_set(
         cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
     ) -> Self::Scalar;
+    fn scalar_argmin(a: Self::Scalar) -> usize;
+    fn get_scalar_arg(a: Self::Scalar, idx: usize) -> f32;
 
     fn all_true(value: Self::Bool) -> bool;
 
@@ -134,6 +149,15 @@ pub struct MultiNum1;
 impl MultiNum for MultiNum1 {
     type Scalar = f32;
     type Bool = bool;
+
+    const SIZE: u32 = 1;
+
+    fn new_vec3_from_iter<It: Iterator<Item = Vec3>>(it: &mut It, default_num: f32) -> Vec3 {
+        match it.next() {
+            Some(value) => value,
+            None => Vec3::new(default_num, default_num, default_num)
+        }
+    }
 
     fn scalar_zero() -> f32 { 0.0f32 }
     fn scalar_one() -> f32 { 1.0f32 }
@@ -157,6 +181,14 @@ impl MultiNum for MultiNum1 {
         } else {
             value_false
         }
+    }
+
+    fn scalar_argmin(a: Self::Scalar) -> usize {
+        0
+    }
+
+    fn get_scalar_arg(a: Self::Scalar, idx: usize) -> f32 {
+        a
     }
 
     fn all_true(value: Self::Bool) -> bool {
@@ -183,6 +215,25 @@ impl MultiNum for MultiNum4 {
     type Scalar = SimdFloat4;
     type Bool = SimdFloat4;
 
+    const SIZE: u32 = 4;
+
+    fn new_vec3_from_iter<It: Iterator<Item = Vec3>>(
+        it: &mut It, default_num: f32
+    ) -> MultiVec3<Self> {
+        let mut res = [Align16([default_num; 4]); 3];
+        it.take(4).enumerate().for_each(|(i, elem)| {
+            res[0].0[i] = elem.x;
+            res[1].0[i] = elem.x;
+            res[2].0[i] = elem.x;
+        });
+
+        MultiVec3::<MultiNum4>::new(
+            SimdFloat4::new_load(&res[0]),
+            SimdFloat4::new_load(&res[1]),
+            SimdFloat4::new_load(&res[2])
+        )
+    }
+
     fn scalar_zero() -> SimdFloat4 { SimdFloat4::new_repeating(MultiNum1::scalar_zero()) }
     fn scalar_one() -> SimdFloat4 { SimdFloat4::new_repeating(MultiNum1::scalar_one()) }
     fn scalar_inf() -> SimdFloat4 { SimdFloat4::new_repeating(MultiNum1::scalar_inf()) }
@@ -201,6 +252,19 @@ impl MultiNum for MultiNum4 {
         cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
     ) -> Self::Scalar {
         cond.conditional_set(value_true, value_false)
+    }
+
+    fn scalar_argmin(a: Self::Scalar) -> usize {
+        let arr = a.to_array();
+        let mut min_idx_value = (0, arr[0]);
+        for idx in 1..4 {
+            min_idx_value = (idx, arr[idx])
+        }
+        min_idx_value.0
+    }
+
+    fn get_scalar_arg(a: Self::Scalar, idx: usize) -> f32 {
+        a.to_array()[idx]
     }
 
     fn all_true(value: Self::Bool) -> bool {
@@ -227,6 +291,25 @@ impl MultiNum for MultiNum8 {
     type Scalar = SimdFloat8;
     type Bool = SimdFloat8;
 
+    const SIZE: u32 = 8;
+
+    fn new_vec3_from_iter<It: Iterator<Item = Vec3>>(
+        it: &mut It, default_num: f32
+    ) -> MultiVec3<Self> {
+        let mut res = [Align32([default_num; 8]); 3];
+        it.take(8).enumerate().for_each(|(i, elem)| {
+            res[0].0[i] = elem.x;
+            res[1].0[i] = elem.x;
+            res[2].0[i] = elem.x;
+        });
+
+        MultiVec3::<MultiNum8>::new(
+            SimdFloat8::new_load(&res[0]),
+            SimdFloat8::new_load(&res[1]),
+            SimdFloat8::new_load(&res[2])
+        )
+    }
+
     fn scalar_zero() -> SimdFloat8 { SimdFloat8::new_repeating(MultiNum1::scalar_zero()) }
     fn scalar_one() -> SimdFloat8 { SimdFloat8::new_repeating(MultiNum1::scalar_one()) }
     fn scalar_inf() -> SimdFloat8 { SimdFloat8::new_repeating(MultiNum1::scalar_inf()) }
@@ -245,6 +328,19 @@ impl MultiNum for MultiNum8 {
         cond: Self::Bool, value_true: Self::Scalar, value_false: Self::Scalar
     ) -> Self::Scalar {
         cond.conditional_set(value_true, value_false)
+    }
+
+    fn scalar_argmin(a: Self::Scalar) -> usize {
+        let arr = a.to_array();
+        let mut min_idx_value = (0, arr[0]);
+        for idx in 1..8 {
+            min_idx_value = (idx, arr[idx])
+        }
+        min_idx_value.0
+    }
+
+    fn get_scalar_arg(a: Self::Scalar, idx: usize) -> f32 {
+        a.to_array()[idx]
     }
 
     fn all_true(value: Self::Bool) -> bool {

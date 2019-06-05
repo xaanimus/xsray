@@ -1,4 +1,5 @@
 
+pub mod bvh_intersector;
 mod bvh_accelerator;
 mod aabb;
 mod splitter;
